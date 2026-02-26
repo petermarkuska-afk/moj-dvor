@@ -1,113 +1,113 @@
 import streamlit as st
 import pandas as pd
-import urllib.parse
 import plotly.express as px
 
-# --- SETUP ---
-MAIL = "tvoj@email.com"
+# --- ZÁKLADNÉ NASTAVENIA ---
+MAIL = "petermarkuska@gmail.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
 
 st.set_page_config(page_title="Victory Port", layout="centered")
 
-def get_data(name):
-    u = f"https://docs.google.com/spreadsheets/d/{SID}/gviz/tq?tqx=out:csv&sheet={name}"
-    return pd.read_csv(u)
+def get_df(sheet):
+    url = f"https://docs.google.com/spreadsheets/d/{SID}/gviz/tq?tqx=out:csv&sheet={sheet}"
+    return pd.read_csv(url)
 
 try:
-    # 1. NACITANIE
-    df_p = get_data("Platby")
-    df_v = get_data("Vydavky")
+    # 1. NAČÍTANIE DÁT
+    df_p = get_df("Platby")
+    df_v = get_df("Vydavky")
     try:
-        df_h = get_data("Hlasovanie")
+        df_h = get_df("Hlasovanie")
     except:
         df_h = pd.DataFrame(columns=["VS", "Hlas"])
 
-    # 2. LOGIKA FINANCII
+    # 2. FINANČNÁ LOGIKA
     df_p["Identifikácia VS"] = df_p["Identifikácia VS"].astype(str).str.zfill(4)
-    stlpce = [c for c in df_p.columns if "/26" in c]
+    stlpce_mesiacov = [c for c in df_p.columns if "/26" in c]
     
-    # Prijmy a vydavky na casovej osi
-    m_p = df_p[stlpce].apply(pd.to_numeric, errors="coerce").fillna(0).sum()
+    # Príjmy po mesiacoch
+    prijmy_mesacne = df_p[stlpce_mesiacov].apply(pd.to_numeric, errors="coerce").fillna(0).sum()
+    
+    # Výdavky po mesiacoch (MUSÍŠ mať stĺpec 'Mesiac' v hárku Vydavky!)
     df_v["Suma"] = pd.to_numeric(df_v["Suma"], errors="coerce").fillna(0)
-    
     if "Mesiac" in df_v.columns:
-        m_v = df_v.groupby("Mesiac")["Suma"].sum()
+        vydavky_mesacne = df_v.groupby("Mesiac")["Suma"].sum()
     else:
-        m_v = pd.Series(0, index=m_p.index)
+        vydavky_mesacne = pd.Series(0, index=prijmy_mesacne.index)
 
-    c_prijmy = m_p.sum()
-    c_vydavky = df_v["Suma"].sum()
-    zost = c_prijmy - c_vydavky
+    celkove_prijmy = prijmy_mesacne.sum()
+    celkove_vydavky = df_v["Suma"].sum()
+    aktualny_zostatok = celkove_prijmy - celkove_vydavky
 
-    # 3. VIZUAL - HLAVICKA
+    # 3. HLAVNÝ PANEL
     st.title("🏡 Victory Port")
     c1, c2, c3 = st.columns(3)
-    c1.metric("Prijmy", f"{c_prijmy:.2f} €")
-    c2.metric("Vydavky", f"{c_vydavky:.2f} €")
-    c3.metric("Zostatok", f"{zost:.2f} €")
+    c1.metric("Príjmy", f"{celkove_prijmy:.2f} €")
+    c2.metric("Výdavky", f"{celkove_vydavky:.2f} €")
+    c3.metric("Zostatok", f"{aktualny_zostatok:.2f} €")
 
-    # 4. GRAF REALNEHO ZOSTATKU
+    # 4. GRAF REÁLNEHO ZOSTATKU (OPRAVENÝ)
     st.write("---")
-    st.subheader("📈 Realny stav fondu (po odratani vydavkov)")
+    st.subheader("📈 Reálny stav fondu v čase")
     
-    # Vypocet: (Prijmy v danom mesiaci - Vydavky v danom mesiaci) a potom sumarny sucet
-    df_g = pd.DataFrame(index=m_p.index)
-    df_g["Prijem"] = m_p.values
-    df_g["Vydaj"] = m_v.reindex(m_p.index, fill_value=0).values
-    df_g["Bilancia"] = df_g["Prijem"] - df_g["Vydaj"]
-    df_g["Realny_Zostatok"] = df_g["Bilancia"].cumsum()
+    df_graf = pd.DataFrame(index=prijmy_mesacne.index)
+    df_graf["Prijem"] = prijmy_mesacne.values
+    df_graf["Vydaj"] = vydavky_mesacne.reindex(prijmy_mesacne.index, fill_value=0).values
+    # Kľúč k úspechu: Odpočítame výdavky od príjmov a urobíme kumulatívny súčet
+    df_graf["Bilancia"] = df_graf["Prijem"] - df_graf["Vydaj"]
+    df_graf["Zostatok"] = df_graf["Bilancia"].cumsum()
     
-    df_g = df_g[df_g["Prijem"] > 0].reset_index()
+    df_graf = df_graf[df_graf["Prijem"] > 0].reset_index()
     
-    if not df_g.empty:
-        fig = px.area(df_g, x="index", y="Realny_Zostatok", template="plotly_dark")
+    if not df_graf.empty:
+        fig = px.area(df_graf, x="index", y="Zostatok", template="plotly_dark")
         fig.update_traces(line_color='#28a745', fillcolor='rgba(40, 167, 69, 0.2)')
+        fig.update_layout(xaxis_title="Mesiac", yaxis_title="Zostatok v €")
         st.plotly_chart(fig, use_container_width=True)
 
-    # 5. ANKETA (Viditelna hned)
+    # 5. ANKETA (Viditeľná ihneď)
     st.write("---")
-    st.subheader("🗳️ Celkove vysledky ankety")
-    v_za = len(df_h[df_h["Hlas"].astype(str).str.contains("ANO", na=False, case=False)])
-    v_pr = len(df_h[df_h["Hlas"].astype(str).str.contains("NIE", na=False, case=False)])
-    st.info(f"Aktualny stav: 👍 ZA: {v_za} | 👎 PROTI: {v_pr}")
+    st.subheader("🗳️ Priebežné výsledky ankety")
+    za = len(df_h[df_h["Hlas"].astype(str).str.contains("ANO", na=False, case=False)])
+    proti = len(df_h[df_h["Hlas"].astype(str).str.contains("NIE", na=False, case=False)])
+    st.info(f"Stav hlasovania: 👍 ÁNO: {za} | 👎 NIE: {proti}")
 
-    # 6. KONTROLA A HLASOVANIE (Po zadani VS)
+    # 6. KONTROLA A HLASOVANIE
     st.write("---")
-    v_in = st.text_input("Pre hlasovanie a kontrolu zadajte Vas VS:")
-    if v_in:
-        vs = v_in.zfill(4)
-        moje = df_p[df_p["Identifikácia VS"] == vs]
-        if not moje.empty:
-            st.success(f"Vase platby (VS {vs})")
-            st.table(moje)
+    moj_vs = st.text_input("Zadajte váš VS pre hlasovanie a kontrolu:")
+    if moj_vs:
+        vs_clean = moj_vs.zfill(4)
+        vlastne_data = df_p[df_p["Identifikácia VS"] == vs_clean]
+        if not vlastne_data.empty:
+            st.table(vlastne_data)
             
-            st.write("### Odošlite Váš hlas:")
-            l1 = f"mailto:{MAIL}?subject=HLAS_ANO_VS_{vs}&body=Hlasujem_ANO"
-            l2 = f"mailto:{MAIL}?subject=HLAS_NIE_VS_{vs}&body=Hlasujem_NIE"
+            st.write("### Hlasujte kliknutím:")
+            url_ano = f"mailto:{MAIL}?subject=HLAS_ANO_VS_{vs_clean}&body=Hlasujem_ANO"
+            url_nie = f"mailto:{MAIL}?subject=HLAS_NIE_VS_{vs_clean}&body=Hlasujem_NIE"
             
-            cx, cy = st.columns(2)
-            cx.link_button("👍 HLASUJEM ZA", l1, use_container_width=True)
-            cy.link_button("👎 HLASUJEM PROTI", l2, use_container_width=True)
+            btn1, btn2 = st.columns(2)
+            btn1.link_button("👍 HLASUJEM ÁNO", url_ano, use_container_width=True)
+            btn2.link_button("👎 HLASUJEM NIE", url_nie, use_container_width=True)
             
-            with st.expander("Nefunguju Vam tlacitla? (Instrukcia pre Gmail)"):
-                st.write(f"Poslite email na: **{MAIL}**")
-                st.write(f"Predmet (skopirujte): `HLAS_ANO_VS_{vs}` (alebo NIE)")
-                st.write("Telo mailu: `Hlasujem za/proti`.")
+            with st.expander("Nefungujú tlačidlá? (Manuálny návod)"):
+                st.write(f"Pošlite email na: **{MAIL}**")
+                st.write(f"Predmet: `HLAS_ANO_VS_{vs_clean}`")
+                st.write("Text: Hlasujem za/proti.")
         else:
-            st.error("VS nenajdeny.")
+            st.error("VS nenájdený.")
 
-    # 7. DLZNICI A VYDAVKY
-    if stlpce:
+    # 7. DLŽNÍCI A VÝDAVKY
+    if stlpce_mesiacov:
         st.write("---")
-        posl_m = stlpce[-1]
-        dlz = df_p[pd.to_numeric(df_p[posl_m], errors="coerce").fillna(0) == 0]
-        if not dlz.empty:
-            st.warning(f"🚨 Chybajuce platby za {posl_m}:")
-            st.dataframe(dlz[["Identifikácia VS"]], hide_index=True)
+        posledny = stlpce_mesiacov[-1]
+        dlznici = df_p[pd.to_numeric(df_p[posledny], errors="coerce").fillna(0) == 0]
+        if not dlznici.empty:
+            st.warning(f"🚨 Chýbajúce platby za {posledny}:")
+            st.dataframe(dlznici[["Identifikácia VS"]], hide_index=True)
 
     st.write("---")
-    st.subheader("📜 Zoznam vydavkov")
+    st.subheader("📜 Detailný zoznam výdavkov")
     st.dataframe(df_v, hide_index=True)
 
 except Exception as e:
-    st.error(f"Chyba: {e}")
+    st.error(f"Chyba v aplikácii: {e}")
