@@ -18,18 +18,18 @@ try:
     df_v = get_df("Vydavky")
     try:
         df_h = get_df("Hlasovanie")
+        # Vyčistenie dát v hlasovaní (odstránenie medzier a prevod na string)
+        df_h["VS"] = df_h["VS"].astype(str).str.zfill(4)
     except:
         df_h = pd.DataFrame(columns=["VS", "Hlas"])
 
-    # 2. LOGIKA PRÍJMOV A VÝDAVKOV
+    # 2. LOGIKA FINANCIÍ
     df_p["Identifikácia VS"] = df_p["Identifikácia VS"].astype(str).str.zfill(4)
     stlpce_m = [c for c in df_p.columns if "/26" in c]
     
-    # Mesačné sumy
     p_mesacne = df_p[stlpce_m].apply(pd.to_numeric, errors="coerce").fillna(0).sum()
     df_v["Suma"] = pd.to_numeric(df_v["Suma"], errors="coerce").fillna(0)
     
-    # Prepojenie výdavkov s časovou osou cez stĺpec "Dátum"
     if "Dátum" in df_v.columns:
         df_v["dt"] = pd.to_datetime(df_v["Dátum"], dayfirst=True, errors='coerce')
         df_v["m_fmt"] = df_v["dt"].dt.strftime('%m/%y')
@@ -37,7 +37,6 @@ try:
     else:
         v_mesacne = pd.Series(0, index=stlpce_m)
 
-    # Kumulatívny zostatok pre graf (Príjem - Výdavok)
     df_graf = pd.DataFrame({
         "Mesiac": stlpce_m,
         "Zostatok": (p_mesacne.values - v_mesacne.values).cumsum()
@@ -68,20 +67,32 @@ try:
     # 3. IDENTIFIKUJ SA
     st.write("---")
     st.subheader("🔐 IDENTIFIKUJ SA")
-    vs_in = st.text_input("Zadajte váš variabilný symbol (4 číslice) pre prístup k hlasovaniu:")
+    vs_in = st.text_input("Zadajte váš variabilný symbol (4 číslice):")
 
     if vs_in:
         v = vs_in.zfill(4)
         moje = df_p[df_p["Identifikácia VS"] == v]
         
         if not moje.empty:
-            st.success(f"Overenie úspešné. Vitajte, používateľ VS {v}")
+            st.success(f"Overenie úspešné. Vitajte, VS {v}")
             st.dataframe(moje, hide_index=True)
             
-            # 4. ANKETA A HLASOVANIE
+            # --- NOVÁ ČASŤ: KONTROLA EXISTUJÚCEHO HLASU ---
             st.divider()
-            st.subheader("🗳️ Aktuálna anketová otázka")
-            st.info("**Súhlasíte s investíciou do modernizácie osvetlenia v spoločných priestoroch?**")
+            st.subheader("🗳️ Aktuálne hlasovanie")
+            
+            # Pozrieme sa do tabuľky Hlasovanie, či tam je tento VS
+            existujuci_hlas = df_h[df_h["VS"] == v]
+            
+            if not existujuci_hlas.empty:
+                posledny_hlas = existujuci_hlas.iloc[-1]["Hlas"]
+                st.warning(f"📢 Váš aktuálne evidovaný hlas v systéme: **{posledny_hlas.upper()}**")
+                st.write("*(Ak chcete svoj hlas zmeniť, pošlite ho znovu nižšie. Započítaný bude posledný doručený e-mail.)*")
+            else:
+                st.info("ℹ️ Zatiaľ sme nezaevidovali váš hlas k tejto otázke.")
+
+            # --- ANKETA A TLAČIDLÁ ---
+            st.info("**Otázka:** Súhlasíte s investíciou do modernizácie osvetlenia v spoločných priestoroch?")
             
             za = len(df_h[df_h["Hlas"].astype(str).str.contains("ANO", na=False, case=False)])
             ni = len(df_h[df_h["Hlas"].astype(str).str.contains("NIE", na=False, case=False)])
@@ -90,25 +101,22 @@ try:
             col_s1.metric("Priebežne ZA", za)
             col_s2.metric("Priebežne PROTI", ni)
 
-            st.write("### Odošlite váš hlas kliknutím:")
+            st.write("### Odošlite/Zmeňte váš hlas:")
             l1 = f"mailto:{MAIL}?subject=HLAS_ANO_VS_{v}&body=Potvrdzujem_hlas_ANO_za_jednotku_{v}"
             l2 = f"mailto:{MAIL}?subject=HLAS_NIE_VS_{v}&body=Potvrdzujem_hlas_NIE_za_jednotku_{v}"
             
             btn_a, btn_b = st.columns(2)
             btn_a.link_button("👍 HLASUJEM ZA", l1, use_container_width=True)
-            btn_b.link_button("👎 HLASUJEM PROTI", l2, use_container_width=True)
+            btn_b.link_button("👎 HLASUJEM NIE", l2, use_container_width=True)
             
-            # MANUÁLNY NÁVOD PRE GMAIL
             with st.expander("Nefungujú vám tlačidlá? Návod pre manuálne hlasovanie:"):
-                st.write(f"Ak sa vám po kliknutí neotvorí e-mail, pošlite ho manuálne:")
                 st.write(f"1. Príjemca: **{MAIL}**")
-                st.write(f"2. Predmet e-mailu: `HLAS_ANO_VS_{v}` (alebo `HLAS_NIE_VS_{v}`)")
-                st.write(f"3. Do textu správy napíšte: *Hlasujem za/proti*.")
-                st.caption("Dôležité: Predmet e-mailu musí obsahovať váš VS pre správne započítanie.")
+                st.write(f"2. Predmet: `HLAS_ANO_VS_{v}` (alebo NIE)")
+                st.write(f"3. Text: Hlasujem za/proti.")
         else:
             st.error("Zadaný variabilný symbol nebol nájdený.")
 
-    # 5. VÝDAVKY (Úplne naspodku)
+    # 4. VÝDAVKY (Úplne naspodku)
     st.write("---")
     with st.expander("📜 Zobraziť detailný zoznam výdavkov"):
         st.dataframe(df_v[["Dátum", "Účel", "Suma"]], hide_index=True, use_container_width=True)
