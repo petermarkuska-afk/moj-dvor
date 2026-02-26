@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 
 # --- KONFIGURÁCIA ---
-MAIL = "tvoj@email.com"
+MAIL = "petermarkuska@gmail.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
 
 st.set_page_config(page_title="Victory Port", layout="centered", page_icon="🏡")
@@ -123,3 +123,4 @@ try:
 
 except Exception as e:
     st.warning(f"Systém je pripravený. Čakám na dáta... (Info: {e})")
+
