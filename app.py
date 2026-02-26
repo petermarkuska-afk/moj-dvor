@@ -1,101 +1,104 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
 import urllib.parse
 
 # ==========================================
-# 1. NASTAVENIA (TU UPRAV SVOJ EMAIL)
+# 1. NASTAVENIA
 # ==========================================
-MOJ_EMAIL = "petermarkuska@gmail.com" 
+MOJ_EMAIL = "tvoj@email.com"  # <--- SEM NAPÍŠ SVOJ EMAIL
 SHEET_ID = '13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY'
 
-# Konfigurácia stránky
 st.set_page_config(page_title="Správa nášho dvora", layout="centered", page_icon="🏡")
 
-# --- FUNKCIA NA NAČÍTANIE DÁT ---
 def load_data(sheet_name):
-    # Tento link vyexportuje konkrétny hárok z tvojej tabuľky ako CSV
     url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_name}'
     return pd.read_csv(url)
 
-# ==========================================
-# 2. HLAVNÝ PROGRAM
-# ==========================================
+# pomocná funkcia pre štýl tlačidiel
+def html_button(link, text, color):
+    return f'''
+        <a href="{link}" target="_blank" style="text-decoration: none;">
+            <div style="
+                background-color: {color};
+                color: white;
+                padding: 12px;
+                text-align: center;
+                border-radius: 8px;
+                font-weight: bold;
+                font-family: sans-serif;
+                margin-bottom: 10px;
+                border: 1px solid rgba(255,255,255,0.1);
+            ">
+                {text}
+            </div>
+        </a>
+    '''
+
 try:
-    # Načítanie hárkov
     df_p = load_data('Platby')
     df_v = load_data('Vydavky')
-    
-    # Ošetrenie Variabilných symbolov (aby nezmizli nuly na začiatku)
     df_p['Identifikácia VS'] = df_p['Identifikácia VS'].astype(str).str.zfill(4)
 
-    # VÝPOČTY PRE FINANČNÝ PREHĽAD
-    # Hľadáme všetky stĺpce, ktoré končia na /26 (mesiace)
+    # VÝPOČTY
     prijmy_stlpce = [c for c in df_p.columns if '/26' in c]
     celkove_prijmy = pd.to_numeric(df_p[prijmy_stlpce].stack(), errors='coerce').sum()
     celkove_vydavky = pd.to_numeric(df_v['Suma'], errors='coerce').sum()
     zostatok = celkove_prijmy - celkove_vydavky
 
-    # ZOBRAZENIE HLAVIČKY
+    # ZOBRAZENIE
     st.title("🏡 Portál správy spoločného dvora")
-    st.info("Vitajte na stránke pre transparentnú správu našich spoločných financií.")
     
-    # METRIKY (TIE TRI OKIENKA HORE)
     c1, c2, c3 = st.columns(3)
     c1.metric("Celkové príjmy", f"{celkove_prijmy:.2f} €")
     c2.metric("Celkové výdavky", f"{celkove_vydavky:.2f} €")
-    c3.metric("Aktuálny zostatok", f"{zostatok:.2f} €", delta=None)
+    c3.metric("Aktuálny zostatok", f"{zostatok:.2f} €")
 
-    # SEKČIA: MOJA KONTROLA PLATIEB
     st.divider()
     st.subheader("🔎 Moja kontrola platieb")
-    moj_vs = st.text_input("Zadajte váš Variabilný symbol (4 číslice, napr. 0101):")
+    moj_vs = st.text_input("Zadajte váš Variabilný symbol (napr. 0101):")
 
     if moj_vs:
         vysledok = df_p[df_p['Identifikácia VS'] == moj_vs]
         if not vysledok.empty:
-            st.success(f"Dáta nájdené pre VS: {moj_vs}")
-            # Zobrazenie riadku majiteľa v prehľadnej tabuľke
             st.table(vysledok)
         else:
-            st.warning("Zadaný VS sa v databáze nenachádza. Skontrolujte preklepy.")
+            st.warning("VS sa nenašiel.")
 
-    # SEKČIA: HLASOVANIE CEZ EMAIL
+    # SEKČIA HLASOVANIE
     st.divider()
     st.subheader("🗳️ Aktuálne hlasovanie")
-    tema_hlasovania = "Súhlasíte s investíciou do novej výsadby zelene (odhad 200 €)?"
-    st.write(f"**Téma:** {tema_hlasovania}")
+    tema = "Súhlasíte s investíciou do novej výsadby zelene (200 €)?"
+    st.write(f"**Téma:** {tema}")
     
     if moj_vs:
-        # Príprava textov pre email (ošetrenie špeciálnych znakov)
-        predmet_ano = urllib.parse.quote(f"HLASOVANIE - ANO - VS {moj_vs}")
-        predmet_nie = urllib.parse.quote(f"HLASOVANIE - NIE - VS {moj_vs}")
-        telo = urllib.parse.quote(f"Dobrý deň,\n\nodosielam svoj hlas k téme: {tema_hlasovania}\n\nMOJ HLAS: ")
+        # Farby: Tmavšia zelená a tlmenejšia červená
+        color_ano = "#1E7E34" 
+        color_nie = "#BD2130"
 
-        col_h1, col_h2 = st.columns(2)
+        txt_ano = f"Hlasujem: ANO | VS: {moj_vs}"
+        txt_nie = f"Hlasujem: NIE | VS: {moj_vs}"
         
-        with col_h1:
-            link_ano = f"mailto:{MOJ_EMAIL}?subject={predmet_ano}&body={telo}ANO"
-            st.markdown(f'<a href="{link_ano}" style="text-decoration:none;"><div style="background-color:#28a745; color:white; padding:10px; text-align:center; border-radius:5px; font-weight:bold;">👍 POSLAŤ HLAS: ÁNO</div></a>', unsafe_allow_html=True)
-            
-        with col_h2:
-            link_nie = f"mailto:{MOJ_EMAIL}?subject={predmet_nie}&body={telo}NIE"
-            st.markdown(f'<a href="{link_nie}" style="text-decoration:none;"><div style="background-color:#dc3545; color:white; padding:10px; text-align:center; border-radius:5px; font-weight:bold;">👎 POSLAŤ HLAS: NIE</div></a>', unsafe_allow_html=True)
-            
-        st.caption("Po kliknutí sa vám otvorí e-mailová aplikácia. Hlas odošlite bez zmien.")
-    else:
-        st.warning("⚠️ Pre odomknutie hlasovacích tlačidiel zadajte svoj VS v sekcii vyššie.")
+        # Odkazy pre poštové aplikácie
+        link_ano = f"mailto:{MOJ_EMAIL}?subject=HLAS_ANO_VS_{moj_vs}&body={urllib.parse.quote(txt_ano)}"
+        link_nie = f"mailto:{MOJ_EMAIL}?subject=HLAS_NIE_VS_{moj_vs}&body={urllib.parse.quote(txt_nie)}"
 
-    # SEKČIA: ZOZNAM VÝDAVKOV
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(html_button(link_ano, "👍 HLASUJEM ÁNO", color_ano), unsafe_allow_html=True)
+        with col2:
+            st.markdown(html_button(link_nie, "👎 HLASUJEM NIE", color_nie), unsafe_allow_html=True)
+
+        # RIEŠENIE PRE GMAIL WEB (MANUÁLNE KOPÍROVANIE)
+        with st.expander("Nefungujú vám tlačidlá? (Pre používateľov Gmail v prehliadači)"):
+            st.write(f"Ak sa vám po kliknutí neotvoril e-mail, pošlite správu manuálne na: **{MOJ_EMAIL}**")
+            st.code(f"Predmet: HLAS_VS_{moj_vs}\nText: {txt_ano} (alebo NIE)")
+            st.info("Stačí skopírovať tento text a poslať ho z vášho Gmailu.")
+    else:
+        st.info("Zadajte svoj VS hore, aby sa zobrazili hlasovacie tlačidlá.")
+
     st.divider()
     st.subheader("📜 Detailný zoznam výdavkov")
-    # Zobrazenie tabuľky výdavkov zoradenej od najnovších
-    if not df_v.empty:
-        st.dataframe(df_v, use_container_width=True, hide_index=True)
-    else:
-        st.write("Zatiaľ neboli zaevidované žiadne výdavky.")
+    st.dataframe(df_v, use_container_width=True, hide_index=True)
 
 except Exception as e:
-    st.error("Pri načítaní dát nastala chyba.")
-    st.write(f"Technický detail: {e}")
-    st.info("Skontrolujte, či sú v Google Tabuľke hárky 'Platby' a 'Vydavky' správne pomenované.")
+    st.error(f"Dáta sa nepodarilo načítať. {e}")
