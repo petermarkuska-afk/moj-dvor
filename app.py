@@ -1,27 +1,37 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="Správa Dvora", layout="centered")
+st.set_page_config(page_title="Správa nášho dvora", layout="centered")
 
-# --- NAČÍTANIE DÁT ---
+# --- FUNKCIA NA NAČÍTANIE ---
 def load_data():
-    # Načítame vašu tabuľku (musí byť uložená ako CSV)
-    df = pd.read_csv('Evidencia.csv')
-    # Prevedieme Identifikáciu VS na text, aby sa dalo vyhľadávať
-    df['Identifikácia VS'] = df['Identifikácia VS'].astype(str).str.zfill(4)
-    return df
+    df_platby = pd.read_csv('Evidencia.csv')
+    df_platby['Identifikácia VS'] = df_platby['Identifikácia VS'].astype(str).str.zfill(4)
+    
+    # Skúsime načítať výdavky, ak existujú
+    try:
+        df_vydavky = pd.read_csv('Vydavky.csv')
+    except:
+        df_vydavky = pd.DataFrame(columns=['Dátum', 'Popis', 'Suma'])
+        
+    return df_platby, df_vydavky
 
 try:
-    df = load_data()
+    df_p, df_v = load_data()
 
-    # --- HLAVNÝ PANEL (DASHBOARD) ---
+    # --- VÝPOČTY ---
+    prijmy_stlpce = df_p.columns[1:13]
+    celkove_prijmy = df_p[prijmy_stlpce].sum().sum()
+    celkove_vydavky = df_v['Suma'].sum()
+    zostatok = celkove_prijmy - celkove_vydavky
+
+    # --- ZOBRAZENIE ---
     st.title("🏡 Portál správy spoločného dvora")
     
-    # Výpočet zostatku (súčet všetkých mesiacov v tabuľke)
-    prijmy_stlpce = df.columns[1:13] # Stĺpce 01/26 až 12/26
-    celkovy_prijem = df[prijmy_stlpce].sum().sum()
-
-    st.metric("Aktuálny stav fondu", f"{celkovy_prijem:,.2f} €".replace(',', ' '))
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Celkové príjmy", f"{celkove_prijmy:.2f} €")
+    c2.metric("Celkové výdavky", f"{celkove_vydavky:.2f} €")
+    c3.metric("Aktuálny zostatok", f"{zostatok:.2f} €", delta_color="normal")
 
     # --- SEKČIA PRE VLASTNÍKA ---
     st.divider()
@@ -29,21 +39,23 @@ try:
     moj_vs = st.text_input("Zadajte váš Variabilný symbol (napr. 0105):")
 
     if moj_vs:
-        vysledok = df[df['Identifikácia VS'] == moj_vs]
+        vysledok = df_p[df_p['Identifikácia VS'] == moj_vs]
         if not vysledok.empty:
-            st.success(f"Údaje pre VS {moj_vs} boli nájdené.")
-            # Zobrazíme tabuľku len pre daného majiteľa
+            st.success(f"Dáta pre VS {moj_vs}:")
             st.dataframe(vysledok)
+            
+            # Kontrola, či zaplatil aktuálny mesiac (február)
+            if vysledok['02/26'].values[0] <= 0:
+                st.error("⚠️ Pre tento mesiac (02/26) neevidujeme vašu platbu.")
+            else:
+                st.info("✅ Platba za aktuálny mesiac je v poriadku.")
         else:
             st.warning("Tento VS sa v databáze nenachádza.")
 
-    # --- ANKETA ---
+    # --- TABUĽKA VÝDAVKOV ---
     st.divider()
-    st.subheader("🗳️ Hlasovanie a ankety")
-    st.write("Máte návrh na zlepšenie alebo chcete hlasovať o aktuálnej téme?")
-    volba = st.selectbox("Téma: Úprava zelene pred vchodom", ["-- Vyberte --", "Súhlasím", "Nesúhlasím"])
-    if volba != "-- Vyberte --":
-        st.info(f"Váš hlas ({volba}) bol zaznamenaný. (Historické záznamy sú v správe administrátora).")
+    st.subheader("📜 Zoznam výdavkov areálu")
+    st.table(df_v)
 
 except Exception as e:
-    st.error("Chyba: Uistite sa, že súbor 'Evidencia.csv' je správne nahraný.")
+    st.error(f"Chyba pri načítaní dát: {e}")
