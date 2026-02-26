@@ -6,7 +6,7 @@ import plotly.express as px
 # ==========================================
 # 1. NASTAVENIA
 # ==========================================
-MOJ_EMAIL = "tvoj@email.com"  # <--- DOPLŇ SVOJ EMAIL
+MOJ_EMAIL = "tvoj@email.com"  # <--- SEM DOPLŇ SVOJ EMAIL
 SHEET_ID = '13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY'
 
 st.set_page_config(page_title="Victory Port - Správa", layout="centered", page_icon="🏡")
@@ -23,7 +23,7 @@ def html_button(link, text, color):
     '''
 
 try:
-    # Načítanie všetkých potrebných hárkov
+    # NAČÍTANIE DÁT
     df_p = load_data('Platby')
     df_v = load_data('Vydavky')
     try:
@@ -35,7 +35,6 @@ try:
 
     # VÝPOČTY
     prijmy_stlpce = [c for c in df_p.columns if '/26' in c]
-    # Vývoj fondu po mesiacoch (pre graf)
     mesacne_prijmy = df_p[prijmy_stlpce].sum()
     celkove_prijmy = mesacne_prijmy.sum()
     celkove_vydavky = pd.to_numeric(df_v['Suma'], errors='coerce').sum()
@@ -52,16 +51,16 @@ try:
     # GRAF VÝVOJA FONDU
     st.subheader("📈 Vývoj financií (2026)")
     df_graf = pd.DataFrame({'Mesiac': prijmy_stlpce, 'Príjmy': mesacne_prijmy.values})
-    fig = px.line(df_graf, x='Mesiac', y='Príjmy', markers=True, template="plotly_dark", line_shape="spline")
+    fig = px.line(df_graf, x='Mesiac', y='Príjmy', markers=True, template="plotly_dark")
     fig.update_traces(line_color='#1E7E34')
     st.plotly_chart(fig, use_container_width=True)
 
     # MOJA KONTROLA A HLASOVANIE
     st.divider()
-    moj_vs = st.text_input("Zadajte váš Variabilný symbol pre kontrolu a hlasovanie:")
+    moj_vs_input = st.text_input("Zadajte váš Variabilný symbol pre kontrolu a hlasovanie:")
 
-    if moj_vs:
-        moj_vs = moj_vs.zfill(4)
+    if moj_vs_input:
+        moj_vs = moj_vs_input.zfill(4)
         vysledok = df_p[df_p['Identifikácia VS'] == moj_vs]
         
         if not vysledok.empty:
@@ -73,13 +72,13 @@ try:
             tema = "Súhlasíte s investíciou do novej výsadby zelene (200 €)?"
             st.write(f"**Téma:** {tema}")
 
-            # Zobrazenie priebežného stavu z tabuľky Hlasovanie
-            ano_count = len(df_h[df_h['Hlas'] == 'ANO'])
-            nie_count = len(df_h[df_h['Hlas'] == 'NIE'])
+            # Výsledky
+            ano_count = len(df_h[df_h['Hlas'].str.contains('ANO', na=False, case=False)])
+            nie_count = len(df_h[df_h['Hlas'].str.contains('NIE', na=False, case=False)])
             
-            c_h1, c_h2 = st.columns(2)
-            c_h1.info(f"Aktuálne ZA: {ano_count}")
-            c_h2.error(f"Aktuálne PROTI: {nie_count}")
+            ch1, ch2 = st.columns(2)
+            ch1.info(f"Aktuálne ZA: {ano_count}")
+            ch2.error(f"Aktuálne PROTI: {nie_count}")
 
             # Tlačidlá
             txt_ano = f"Hlasujem: ANO | VS: {moj_vs}"
@@ -92,26 +91,10 @@ try:
                 st.markdown(html_button(link_ano, "👍 HLASUJEM ÁNO", "#1E7E34"), unsafe_allow_html=True)
             with col2:
                 st.markdown(html_button(link_nie, "👎 HLASUJEM NIE", "#BD2130"), unsafe_allow_html=True)
+            
+            with st.expander("Nefungujú vám tlačidlá?"):
+                st.write(f"Pošlite mail na {MOJ_EMAIL} s textom: {txt_ano}")
         else:
             st.error("VS nenájdený.")
 
-    # ZOZNAM DLŽNÍKOV (ANONYMIZOVANÝ)
-    st.divider()
-    st.subheader("🚨 Prehľad platieb a nedoplatkov")
-    # Predpoklad: ak má niekto v aktuálnom mesiaci 0, je dlžník
-aktualny_mesiac = prijmy_stlpce[-1] # Posledný pridaný stĺpec
-    dlznici = df_p[df_p[aktualny_mesiac] == 0][['Identifikácia VS']]
-    
-    if not dlznici.empty:
-        st.warning(f"Evidujeme chýbajúce platby za {aktualny_mesiac} u týchto VS:")
-        st.dataframe(dlznici, hide_index=True, use_container_width=True)
-    else:
-        st.success("Všetky platby za aktuálny mesiac sú v poriadku.")
-
-    # VÝDAVKY
-    st.divider()
-    st.subheader("📜 Detailný zoznam výdavkov")
-    st.dataframe(df_v, use_container_width=True, hide_index=True)
-
-except Exception as e:
-    st.error(f"Chyba: {e}")
+    # ZOZNAM DLŽNÍKOV
