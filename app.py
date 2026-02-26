@@ -5,7 +5,7 @@ import urllib.parse
 # ==========================================
 # 1. NASTAVENIA
 # ==========================================
-MOJ_EMAIL = "tvoj@email.com"  # <--- SEM NAPÍŠ SVOJ EMAIL
+MOJ_EMAIL = "petermarkuska@gmail.com"  # <--- SEM NAPÍŠ SVOJ EMAIL
 SHEET_ID = '13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY'
 
 st.set_page_config(page_title="Správa nášho dvora", layout="centered", page_icon="🏡")
@@ -102,3 +102,4 @@ try:
 
 except Exception as e:
     st.error(f"Dáta sa nepodarilo načítať. {e}")
+
