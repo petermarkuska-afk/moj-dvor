@@ -4,7 +4,7 @@ import urllib.parse
 import plotly.express as px
 
 # --- SETUP ---
-MAIL = "petermarkuska@gmail.com"
+MAIL = "tvoj@email.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
 
 st.set_page_config(page_title="Victory Port", layout="centered")
@@ -67,4 +67,47 @@ try:
     # 5. ANKETA (Viditelna hned)
     st.write("---")
     st.subheader("🗳️ Celkove vysledky ankety")
-    v_za = len(df_h
+    v_za = len(df_h[df_h["Hlas"].astype(str).str.contains("ANO", na=False, case=False)])
+    v_pr = len(df_h[df_h["Hlas"].astype(str).str.contains("NIE", na=False, case=False)])
+    st.info(f"Aktualny stav: 👍 ZA: {v_za} | 👎 PROTI: {v_pr}")
+
+    # 6. KONTROLA A HLASOVANIE (Po zadani VS)
+    st.write("---")
+    v_in = st.text_input("Pre hlasovanie a kontrolu zadajte Vas VS:")
+    if v_in:
+        vs = v_in.zfill(4)
+        moje = df_p[df_p["Identifikácia VS"] == vs]
+        if not moje.empty:
+            st.success(f"Vase platby (VS {vs})")
+            st.table(moje)
+            
+            st.write("### Odošlite Váš hlas:")
+            l1 = f"mailto:{MAIL}?subject=HLAS_ANO_VS_{vs}&body=Hlasujem_ANO"
+            l2 = f"mailto:{MAIL}?subject=HLAS_NIE_VS_{vs}&body=Hlasujem_NIE"
+            
+            cx, cy = st.columns(2)
+            cx.link_button("👍 HLASUJEM ZA", l1, use_container_width=True)
+            cy.link_button("👎 HLASUJEM PROTI", l2, use_container_width=True)
+            
+            with st.expander("Nefunguju Vam tlacitla? (Instrukcia pre Gmail)"):
+                st.write(f"Poslite email na: **{MAIL}**")
+                st.write(f"Predmet (skopirujte): `HLAS_ANO_VS_{vs}` (alebo NIE)")
+                st.write("Telo mailu: `Hlasujem za/proti`.")
+        else:
+            st.error("VS nenajdeny.")
+
+    # 7. DLZNICI A VYDAVKY
+    if stlpce:
+        st.write("---")
+        posl_m = stlpce[-1]
+        dlz = df_p[pd.to_numeric(df_p[posl_m], errors="coerce").fillna(0) == 0]
+        if not dlz.empty:
+            st.warning(f"🚨 Chybajuce platby za {posl_m}:")
+            st.dataframe(dlz[["Identifikácia VS"]], hide_index=True)
+
+    st.write("---")
+    st.subheader("📜 Zoznam vydavkov")
+    st.dataframe(df_v, hide_index=True)
+
+except Exception as e:
+    st.error(f"Chyba: {e}")
