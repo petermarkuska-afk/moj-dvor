@@ -128,8 +128,10 @@ try:
                 </div>
                 """, unsafe_allow_html=True)
                 
+                # SPRACOVANIE HLASOV
                 if not df_h.empty:
-                    df_h["VS_Check"] = df_h["VS"].astype(str).str.strip().str.zfill(4)
+                    # Robustná kontrola VS v stĺpcoch (Make.com môže vytvoriť stĺpce VS alebo Hlas)
+                    df_h["VS_Check"] = df_h["VS"].astype(str).str.strip().str.zfill(4) if "VS" in df_h.columns else ""
                     h_col = "Hlas" if "Hlas" in df_h.columns else "HLAS"
                     df_h["Hlas_Upper"] = df_h[h_col].astype(str).str.upper()
                     
@@ -140,12 +142,14 @@ try:
                     s1.metric("Priebežne ZA", za)
                     s2.metric("Priebežne PROTI", ni)
 
-                    moj_h = df_h[(df_h["VS_Check"] == v_c) | (df_h["Hlas_Upper"].str.contains(v_c))]
+                    # HĽADANIE TVOJHO HLASU
+                    moj_h = df_h[df_h["VS_Check"] == v_c]
                     
                     if not moj_h.empty:
                         posledny = moj_h.iloc[-1]["Hlas_Upper"]
                         vysledok_text = "ÁNO 👍" if "ANO" in posledny else "NIE 👎"
-                        st.warning(f"📢 **Váš zaevidovaný hlas:** {vysledok_text}")
+                        # TU JE TEN VRÁTENÝ RIADOK:
+                        st.warning(f"📢 **Váš zaevidovaný hlas k tejto ankete je:** {vysledok_text}")
                     else:
                         st.info("Zatiaľ ste v tejto ankete nehlasovali.")
                 
