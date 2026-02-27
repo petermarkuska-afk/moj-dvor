@@ -67,7 +67,7 @@ try:
         df_graf = pd.DataFrame()
 
     # --- UI HLAVIČKA ---
-    st.title("🏡 Správa areálu Victory Port © PM 2026  ")
+    st.title("🏡 Správa areálu Victory Port")
     if st.button("Odhlásiť"):
         st.session_state["authenticated"] = False
         st.rerun()
@@ -175,6 +175,7 @@ try:
 
 except Exception as e:
     st.error(f"Chyba systému: {e}")
+
 
 
 
