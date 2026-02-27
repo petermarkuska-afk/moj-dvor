@@ -100,7 +100,7 @@ try:
     else:
         st.info("Žiadne nové oznamy.")
 
-    # --- 🛠️ SEKČIA: PODNET SPRÁVCOVI (TLAČIDLO + POZNÁMKA) ---
+    # --- 🛠️ SEKČIA: PODNET SPRÁVCOVI ---
     st.markdown("### 🛠️ Podnet pre správcu")
     msg_text = st.text_area("Napíšte váš podnet, otázku alebo nahláste poruchu:", placeholder="Napr. Nesvieti lampa pri vjazde...")
     
@@ -123,6 +123,10 @@ try:
         
         if not moje.empty:
             st.success(f"Overené pre VS: {v_c}")
+            
+            # --- NOVÝ TEXT ---
+            st.markdown("#### 💰 Tvoje platby do fondu")
+            
             st.dataframe(moje, hide_index=True)
             
             if OTAZKA.upper() != "ŽIADNA ANKETA":
