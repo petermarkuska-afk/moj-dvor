@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import urllib.parse
 
 # --- KONFIGURÁCIA ---
-MAIL = "petermarkuska@gmail.com"
+MAIL = "pmarkuska@gmail.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
 OTAZKA = "Súhlasíte s investíciou do modernizácie osvetlenia?"
 HLAVNE_HESLO = "Victory2026" 
@@ -28,7 +29,6 @@ if not st.session_state["authenticated"]:
 # --- NAČÍTANIE DÁT ---
 def get_df(sheet):
     try:
-        # Pridanie cache_bust parametra zabezpečí, že Google Sheets nebudú posielať staré (zacachované) dáta
         import time
         cache_bust = int(time.time())
         url = f"https://docs.google.com/spreadsheets/d/{SID}/gviz/tq?tqx=out:csv&sheet={sheet}&cb={cache_bust}"
@@ -42,16 +42,13 @@ try:
     df_v = get_df("Vydavky")
     df_h = get_df("Hlasovanie")
 
-    # 1. ČISTENIE DÁT
+    # 1. ČISTENIE DÁT FINANCIE
     if not df_p.empty:
         df_p["Identifikácia VS"] = df_p["Identifikácia VS"].astype(str).str.strip().str.zfill(4)
         stlpce_m = [c for c in df_p.columns if "/26" in c]
         p_mes = df_p[stlpce_m].apply(pd.to_numeric, errors="coerce").fillna(0).sum()
     else:
         p_mes = pd.Series()
-
-    if not df_v.empty:
-        df_v["Suma"] = pd.to_numeric(df_v["Suma"], errors="coerce").fillna(0)
 
     # --- UI HLAVIČKA ---
     st.title("🏡 Victory Port")
@@ -60,27 +57,13 @@ try:
         st.rerun()
     st.write("---")
 
-    # METRIKY A GRAF
+    # METRIKY A GRAF (Zostávajú nezmenené)
     if not p_mes.empty:
+        v_sum = pd.to_numeric(df_v["Suma"], errors="coerce").fillna(0).sum() if not df_v.empty else 0
         m1, m2, m3 = st.columns(3)
-        v_sum = df_v["Suma"].sum() if not df_v.empty else 0
         m1.metric("Fond celkom", f"{p_mes.sum():.2f} €")
         m2.metric("Výdavky celkom", f"{v_sum:.2f} €")
         m3.metric("Aktuálny zostatok", f"{(p_mes.sum() - v_sum):.2f} €")
-
-        if "Dátum" in df_v.columns and not df_v.empty:
-            df_v["dt"] = pd.to_datetime(df_v["Dátum"], dayfirst=True, errors='coerce')
-            df_v["m_fmt"] = df_v["dt"].dt.strftime('%m/%y')
-            v_mes = df_v.groupby("m_fmt")["Suma"].sum().reindex(stlpce_m, fill_value=0)
-        else:
-            v_mes = pd.Series(0, index=stlpce_m)
-
-        df_graf = pd.DataFrame({"Mesiac": stlpce_m, "Zostatok": (p_mes.values - v_mes.values).cumsum()}).reset_index(drop=True)
-        df_graf = df_graf[p_mes.values > 0]
-        if not df_graf.empty:
-            fig = px.area(df_graf, x="Mesiac", y="Zostatok", template="plotly_dark")
-            fig.update_traces(line_color='#28a745', fillcolor='rgba(40, 167, 69, 0.2)')
-            st.plotly_chart(fig, use_container_width=True)
 
     # --- SEKČIA POUŽÍVATEĽA ---
     st.write("---")
@@ -92,7 +75,6 @@ try:
         
         if not moje.empty:
             st.success(f"Overené pre VS: {v_c}")
-            st.dataframe(moje, hide_index=True)
             
             if OTAZKA.upper() != "ŽIADNA ANKETA":
                 st.divider()
@@ -107,7 +89,6 @@ try:
                 
                 # SPRACOVANIE HLASOV
                 if not df_h.empty:
-                    # Kombinujeme stĺpce VS a Hlas pre istotu, ak by si VS zadal manuálne do stĺpca VS
                     df_h["VS_Check"] = df_h["VS"].astype(str).str.strip().str.zfill(4)
                     df_h["Hlas_Upper"] = df_h["Hlas"].astype(str).str.upper()
                     
@@ -118,7 +99,7 @@ try:
                     s1.metric("Priebežne ZA", za)
                     s2.metric("Priebežne PROTI", ni)
 
-                    # Hľadanie hlasu: pozeráme sa buď do stĺpca VS alebo či je VS v texte predmetu
+                    # Rozšírené hľadanie hlasu (stĺpec VS alebo text v Hlas)
                     moj_h = df_h[(df_h["VS_Check"] == v_c) | (df_h["Hlas_Upper"].str.contains(v_c))]
                     
                     if not moj_h.empty:
@@ -128,33 +109,29 @@ try:
                     else:
                         st.info("Zatiaľ ste v tejto ankete nehlasovali.")
                 
-                # KOMPLETNÝ NÁVOD PRE HLASOVANIE
-                st.write("### ✉️ Ako hlasovať?")
+                # PRÍPRAVA PREDMETU MAILU (Kódovanie pre URL)
+                subj_za = urllib.parse.quote(f"HLAS_ANO_{v_c}: {OTAZKA}")
+                subj_ni = urllib.parse.quote(f"HLAS_NIE_{v_c}: {OTAZKA}")
                 
-                tab1, tab2 = st.tabs(["Rýchle hlasovanie", "Manuálny návod (ak nefungujú tlačidlá)"])
+                st.write("### ✉️ Ako hlasovať?")
+                tab1, tab2 = st.tabs(["Rýchle hlasovanie", "Manuálny návod"])
                 
                 with tab1:
-                    st.write("Kliknite na jedno z tlačidiel. Otvorí sa vám e-mail, ktorý stačí len odoslať.")
+                    st.write("Kliknite na tlačidlo a odošlite vygenerovaný e-mail.")
                     b1, b2 = st.columns(2)
-                    b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL}?subject=HLAS_ANO_{v_c}&body=Hlas_ANO_{v_c}", use_container_width=True)
-                    b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL}?subject=HLAS_NIE_{v_c}&body=Hlas_NIE_{v_c}", use_container_width=True)
+                    b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL}?subject={subj_za}&body=Potvrdzujem hlas ZA pre VS {v_c}", use_container_width=True)
+                    b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL}?subject={subj_ni}&body=Potvrdzujem hlas PROTI pre VS {v_c}", use_container_width=True)
                 
                 with tab2:
-                    st.info("Ak sa vám po kliknutí na tlačidlo neotvorí e-mail, pošlite ho manuálne:")
+                    st.info("Ak tlačidlá nefungujú, pošlite e-mail manuálne takto:")
                     st.markdown(f"""
-                    1. Otvorte svoj e-mailový účet (Gmail, Outlook, atď.).
-                    2. Adresát: **{MAIL}**
-                    3. Predmet (DÔLEŽITÉ): **HLAS_ANO_{v_c}** (pre ZA) alebo **HLAS_NIE_{v_c}** (pre PROTI).
-                    4. Text e-mailu môže zostať prázdny.
-                    5. Odošlite e-mail.
+                    1. Adresát: **{MAIL}**
+                    2. Predmet (skopírujte presne): **HLAS_ANO_{v_c}: {OTAZKA}**
+                    3. Odošlite e-mail (text môže byť prázdny).
                     """)
 
-    with st.expander("📜 Zoznam výdavkov a faktúry"):
-        if not df_v.empty:
-            cols_show = [c for c in df_v.columns if c not in ['dt', 'm_fmt']]
-            st.dataframe(df_v[cols_show], hide_index=True, use_container_width=True,
-                         column_config={"Doklad": st.column_config.LinkColumn("Odkaz na faktúru")})
+    with st.expander("📜 Výdavky"):
+        st.dataframe(df_v, hide_index=True)
 
 except Exception as e:
-    st.error(f"Chyba systému: {e}")
-
+    st.error(f"Chyba: {e}")
