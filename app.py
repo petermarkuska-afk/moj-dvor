@@ -5,7 +5,7 @@ import plotly.express as px
 # --- KONFIGURÁCIA A NASTAVENIA ---
 MAIL = "tvoj@email.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
-OTAZKA = "ŽIADNA ANKETA" # Tu zmeň text otázky alebo napíš "ŽIADNA ANKETA"
+OTAZKA = "Súhlasíte s investíciou do modernizácie osvetlenia?" # Tu zmeň otázku alebo napíš "ŽIADNA ANKETA"
 
 st.set_page_config(page_title="Victory Port", layout="centered", page_icon="🏡")
 
@@ -73,9 +73,9 @@ try:
             st.dataframe(moje, hide_index=True)
             
             # --- PODMIENENÝ MODUL ANKETY ---
-            if OTAZKA.upper() != "SKUSKA":
+            if OTAZKA.upper() != "ŽIADNA ANKETA":
                 st.divider()
-                st.subheader("🗳️ Súhlasím s postavením heliportu?")
+                st.subheader("🗳️ Aktuálna anketová otázka")
                 
                 # Zobrazenie hlasu ak existuje
                 ex_hlas = df_h[df_h["VS"] == v]
@@ -92,18 +92,24 @@ try:
                 s1.metric("Priebežne ZA", za)
                 s2.metric("Priebežne PROTI", ni)
 
-                # Tlačidlá
-                l1 = f"mailto:{MAIL}?subject=HLAS_ANO_{v}&body=Hlasujem_ANO_za_{v}"
-                l2 = f"mailto:{MAIL}?subject=HLAS_NIE_{v}&body=Hlasujem_NIE_za_{v}"
+                # Dynamický predmet mailu: Otázka + VS
+                # Skracujeme otázku na 30 znakov pre prehľadnosť v predmete
+                predmet_skratka = (OTAZKA[:30] + '..') if len(OTAZKA) > 30 else OTAZKA
+                subject_ano = f"HLAS_ANO: {predmet_skratka} (VS {v})"
+                subject_nie = f"HLAS_NIE: {predmet_skratka} (VS {v})"
                 
+                l1 = f"mailto:{MAIL}?subject={subject_ano}&body=Hlasujem_ANO_na_otazku:_{OTAZKA}_(VS_{v})"
+                l2 = f"mailto:{MAIL}?subject={subject_nie}&body=Hlasujem_NIE_na_otazku:_{OTAZKA}_(VS_{v})"
+                
+                st.write("### Odošlite váš hlas:")
                 b1, b2 = st.columns(2)
                 b1.link_button("👍 HLASUJEM ZA", l1, use_container_width=True)
                 b2.link_button("👎 HLASUJEM PROTI", l2, use_container_width=True)
                 
                 with st.expander("Manuálny návod pre Gmail"):
-                    st.write(f"Pošlite mail na **{MAIL}** s predmetom `HLAS_ANO_VS_{v}`")
+                    st.write(f"Pošlite mail na **{MAIL}**")
+                    st.write(f"Predmet: `HLAS_ZA: {OTAZKA} (VS {v})`")
             else:
-                # Ak nie je anketa, vypíšeme len decentné info
                 st.write("*(Momentálne neprebieha žiadne hlasovanie)*")
         else:
             st.error("VS sa nenašiel.")
@@ -114,6 +120,4 @@ try:
         st.dataframe(df_v[["Dátum", "Účel", "Suma"]], hide_index=True, use_container_width=True)
 
 except Exception as e:
-    st.info(f"Načítavam systém... (Dáta sa synchronizujú)")
-
-
+    st.info(f"Načítavam systém...")
