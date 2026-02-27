@@ -50,7 +50,7 @@ try:
         st.rerun()
     st.write("---")
 
-    # 1. FINANCIE A GRAF
+    # 1. FINANCIE A GRAF (VRÁTENÉ SPÄŤ)
     if not df_p.empty:
         df_p["Identifikácia VS"] = df_p["Identifikácia VS"].astype(str).str.strip().str.zfill(4)
         stlpce_m = [c for c in df_p.columns if "/26" in c]
@@ -76,11 +76,11 @@ try:
             df_graf = df_graf[p_mes.values > 0]
             
             if not df_graf.empty:
-                fig = px.area(df_graf, x="Mesiac", y="Zostatok", template="plotly_dark")
+                fig = px.area(df_graf, x="Mesiac", y="Zostatok", title="Vývoj zostatku vo fonde", template="plotly_dark")
                 fig.update_traces(line_color='#28a745', fillcolor='rgba(40, 167, 69, 0.2)')
                 st.plotly_chart(fig, use_container_width=True)
 
-    # 2. VÝDAVKY (S KLIKATEĽNÝM ODKAZOM)
+    # 2. VÝDAVKY
     with st.expander("📜 Zobraziť zoznam všetkých výdavkov", expanded=False):
         if not df_v.empty:
             cols_to_show = [c for c in df_v.columns if c not in ['dt', 'm_fmt']]
@@ -88,25 +88,23 @@ try:
                 df_v[cols_to_show], 
                 hide_index=True, 
                 use_container_width=True,
-                column_config={
-                    "Doklad": st.column_config.LinkColumn("Doklad")
-                }
+                column_config={"Doklad": st.column_config.LinkColumn("Doklad")}
             )
         else:
-            st.info("Žiadne výdavky neboli zatiaľ zaevidované.")
+            st.info("Žiadne výdavky neboli zaevidované.")
 
     # 3. NÁSTENKA
     st.markdown("### 📢 Nástenka")
     if not df_n.empty:
         st.table(df_n.iloc[::-1])
     else:
-        st.info("Žiadne oznamy.")
+        st.info("Žiadne nové oznamy.")
 
     st.write("---")
 
     # 4. SEKČIA POUŽÍVATEĽA
     st.markdown("### 🔑 Prístup k osobným platbám a ankete")
-    vs_in = st.text_input("Zadajte váš VS (4 číslice):", label_visibility="collapsed", placeholder="Napr. 0123")
+    vs_in = st.text_input("Zadajte váš VS (4 číslice):", label_visibility="collapsed", placeholder="Napr. 0101")
     
     if vs_in:
         v_c = vs_in.strip().zfill(4)
@@ -121,9 +119,11 @@ try:
                 st.subheader(f"🗳️ Anketa: {OTAZKA}")
                 
                 if not df_h.empty:
+                    # Vyčistenie názvov stĺpcov
                     df_h.columns = [c.strip() for c in df_h.columns]
                     h_col = next((c for c in df_h.columns if "HLAS" in c.upper()), df_h.columns[-1])
                     
+                    # Výsledky ankety
                     za = len(df_h[df_h[h_col].astype(str).str.upper().str.contains("ANO")])
                     ni = len(df_h[df_h[h_col].astype(str).str.upper().str.contains("NIE")])
                     
@@ -131,7 +131,13 @@ try:
                     s1.metric("Priebežne ZA", za)
                     s2.metric("Priebežne PROTI", ni)
 
-                    moj_h = df_h[df_h.apply(lambda row: v_c in row.astype(str).values, axis=1)]
+                    # --- OPRAVENÉ ROBUSTNÉ HĽADANIE HLASU ---
+                    def clean_val(val):
+                        return str(val).strip().lstrip('0')
+
+                    v_c_clean = v_c.lstrip('0')
+                    # Hľadáme VS v ktoromkoľvek stĺpci riadku
+                    moj_h = df_h[df_h.apply(lambda row: any(clean_val(x) == v_c_clean for x in row), axis=1)]
                     
                     if not moj_h.empty:
                         posledny_zapis = moj_h.iloc[-1]
@@ -148,13 +154,13 @@ try:
                 
                 tab1, tab2 = st.tabs(["Rýchle tlačidlá", "Manuálny návod"])
                 with tab1:
-                    st.write("Kliknite na tlačidlo pre automatické vytvorenie e-mailu:")
+                    st.write("Kliknite na tlačidlo:")
                     b1, b2 = st.columns(2)
                     b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL}?subject={urllib.parse.quote(subj_za)}&body=Hlas_ANO_{v_c}", use_container_width=True)
                     b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL}?subject={urllib.parse.quote(subj_ni)}&body=Hlas_NIE_{v_c}", use_container_width=True)
                 
                 with tab2:
-                    st.info("Ak tlačidlá nefungujú, pošlite e-mail manuálne s týmito údajmi:")
+                    st.info("Ak tlačidlá nefungujú, pošlite e-mail manuálne:")
                     st.markdown(f"""
                     * 📧 Adresát: **{MAIL}**
                     * 🟢 Predmet pre ZA: `{subj_za}`
@@ -162,10 +168,10 @@ try:
                     """)
 
         else:
-            st.error("VS sa nenašiel v databáze.")
+            st.error("Zadaný VS sa nenašiel v databáze platieb.")
 
 except Exception as e:
-    st.error(f"Chyba: {e}")
+    st.error(f"Kritická chyba: {e}")
 
 st.write("---")
 st.caption("© 2026 Victory Port | Správa areálu")
