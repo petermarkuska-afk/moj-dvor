@@ -48,7 +48,6 @@ try:
         stlpce_m = [c for c in df_p.columns if "/26" in c]
         p_mes = df_p[stlpce_m].apply(pd.to_numeric, errors="coerce").fillna(0).sum()
         
-        # Príprava výdavkov pre graf
         df_v["Suma"] = pd.to_numeric(df_v["Suma"], errors="coerce").fillna(0)
         if "Dátum" in df_v.columns and not df_v.empty:
             df_v["dt"] = pd.to_datetime(df_v["Dátum"], dayfirst=True, errors='coerce')
@@ -57,7 +56,6 @@ try:
         else:
             v_mes = pd.Series(0, index=stlpce_m)
             
-        # VÝPOČET GRAFU
         df_graf = pd.DataFrame({
             "Mesiac": stlpce_m, 
             "Zostatok": (p_mes.values - v_mes.values).cumsum()
@@ -88,9 +86,18 @@ try:
             fig.update_traces(line_color='#28a745', fillcolor='rgba(40, 167, 69, 0.2)')
             st.plotly_chart(fig, use_container_width=True)
 
+    # --- NOVÉ UMIESTNENIE VÝDAVKOV ---
+    with st.expander("📜 Zobraziť zoznam všetkých výdavkov", expanded=False):
+        if not df_v.empty:
+            st.dataframe(df_v[[c for c in df_v.columns if c not in ['dt', 'm_fmt']]], 
+                         hide_index=True, use_container_width=True,
+                         column_config={"Doklad": st.column_config.LinkColumn("Faktúra")})
+        else:
+            st.info("Žiadne výdavky neboli zatiaľ zaevidované.")
+
     # --- SEKČIA POUŽÍVATEĽA ---
     st.write("---")
-    vs_in = st.text_input("Zadajte váš VS (4 číslice):")
+    vs_in = st.text_input("Zadajte váš VS (4 číslice) pre prístup k ankete a platbám:")
     
     if vs_in:
         v_c = vs_in.strip().zfill(4)
@@ -104,14 +111,12 @@ try:
                 st.divider()
                 st.subheader("🗳️ Aktuálna anketa")
                 
-                # Grafický box pre otázku
                 st.markdown(f"""
                 <div style="background-color: #f0f2f6; padding: 20px; border-radius: 10px; border-left: 5px solid #ff4b4b;">
                     <p style="color: #1f1f1f; font-size: 22px; font-weight: bold; margin-bottom: 0px;">{OTAZKA}</p>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # SPRACOVANIE HLASOV
                 if not df_h.empty:
                     df_h["VS_Check"] = df_h["VS"].astype(str).str.strip().str.zfill(4)
                     df_h["Hlas_Upper"] = df_h["Hlas"].astype(str).str.upper()
@@ -123,7 +128,6 @@ try:
                     s1.metric("Priebežne ZA", za)
                     s2.metric("Priebežne PROTI", ni)
 
-                    # Hľadanie hlasu (stĺpec VS alebo text v Hlas)
                     moj_h = df_h[(df_h["VS_Check"] == v_c) | (df_h["Hlas_Upper"].str.contains(v_c))]
                     
                     if not moj_h.empty:
@@ -133,7 +137,6 @@ try:
                     else:
                         st.info("Zatiaľ ste v tejto ankete nehlasovali.")
                 
-                # PRÍPRAVA PREDMETU (Otázka je späť v predmete)
                 subj_za = urllib.parse.quote(f"HLAS_ANO_{v_c}: {OTAZKA}")
                 subj_ni = urllib.parse.quote(f"HLAS_NIE_{v_c}: {OTAZKA}")
                 
@@ -153,11 +156,8 @@ try:
                     2. Predmet: **HLAS_ANO_{v_c}: {OTAZKA}** (pre ZA) <br> alebo **HLAS_NIE_{v_c}: {OTAZKA}** (pre PROTI)
                     3. Text e-mailu môže zostať prázdny.
                     """, unsafe_allow_html=True)
-
-    with st.expander("📜 Zoznam výdavkov"):
-        st.dataframe(df_v[[c for c in df_v.columns if c not in ['dt', 'm_fmt']]], 
-                     hide_index=True, use_container_width=True,
-                     column_config={"Doklad": st.column_config.LinkColumn("Faktúra")})
+        else:
+            st.error("Zadaný VS sa nenašiel v databáze platieb.")
 
 except Exception as e:
     st.error(f"Chyba systému: {e}")
