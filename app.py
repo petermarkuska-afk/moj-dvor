@@ -73,7 +73,7 @@ try:
             st.dataframe(moje, hide_index=True)
             
             # --- PODMIENENÝ MODUL ANKETY ---
-            if OTAZKA.upper() != "ŽIADNA ANKETA":
+            if OTAZKA.upper() != "SKUSKA":
                 st.divider()
                 st.subheader("🗳️ Aktuálna anketová otázka")
                 
@@ -115,3 +115,4 @@ try:
 
 except Exception as e:
     st.info(f"Načítavam systém... (Dáta sa synchronizujú)")
+
