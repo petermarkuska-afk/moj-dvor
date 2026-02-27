@@ -30,6 +30,7 @@ if not st.session_state["authenticated"]:
 # --- NAČÍTANIE DÁT ---
 def get_df(sheet):
     try:
+        # Zabránenie cachovaniu starých dát z Google Sheets
         cache_bust = int(time.time())
         url = f"https://docs.google.com/spreadsheets/d/{SID}/gviz/tq?tqx=out:csv&sheet={sheet}&cb={cache_bust}"
         df = pd.read_csv(url)
@@ -86,10 +87,11 @@ try:
             fig.update_traces(line_color='#28a745', fillcolor='rgba(40, 167, 69, 0.2)')
             st.plotly_chart(fig, use_container_width=True)
 
-    # --- NOVÉ UMIESTNENIE VÝDAVKOV ---
+    # --- ZOZNAM VÝDAVKOV (POSUNUTÝ HORE) ---
     with st.expander("📜 Zobraziť zoznam všetkých výdavkov", expanded=False):
         if not df_v.empty:
-            st.dataframe(df_v[[c for c in df_v.columns if c not in ['dt', 'm_fmt']]], 
+            cols_to_show = [c for c in df_v.columns if c not in ['dt', 'm_fmt']]
+            st.dataframe(df_v[cols_to_show], 
                          hide_index=True, use_container_width=True,
                          column_config={"Doklad": st.column_config.LinkColumn("Faktúra")})
         else:
@@ -111,13 +113,16 @@ try:
                 st.divider()
                 st.subheader("🗳️ Aktuálna anketa")
                 
+                # Grafický box pre otázku
                 st.markdown(f"""
                 <div style="background-color: #f0f2f6; padding: 20px; border-radius: 10px; border-left: 5px solid #ff4b4b;">
                     <p style="color: #1f1f1f; font-size: 22px; font-weight: bold; margin-bottom: 0px;">{OTAZKA}</p>
                 </div>
                 """, unsafe_allow_html=True)
                 
+                # SPRACOVANIE HLASOV
                 if not df_h.empty:
+                    # Očistenie stĺpcov pre porovnávanie
                     df_h["VS_Check"] = df_h["VS"].astype(str).str.strip().str.zfill(4)
                     df_h["Hlas_Upper"] = df_h["Hlas"].astype(str).str.upper()
                     
@@ -128,6 +133,7 @@ try:
                     s1.metric("Priebežne ZA", za)
                     s2.metric("Priebežne PROTI", ni)
 
+                    # Hľadanie hlasu (v stĺpci VS alebo v texte predmetu)
                     moj_h = df_h[(df_h["VS_Check"] == v_c) | (df_h["Hlas_Upper"].str.contains(v_c))]
                     
                     if not moj_h.empty:
@@ -137,8 +143,12 @@ try:
                     else:
                         st.info("Zatiaľ ste v tejto ankete nehlasovali.")
                 
-                subj_za = urllib.parse.quote(f"HLAS_ANO_{v_c}: {OTAZKA}")
-                subj_ni = urllib.parse.quote(f"HLAS_NIE_{v_c}: {OTAZKA}")
+                # Príprava predmetu pre e-mail
+                display_subj_za = f"HLAS_ANO_{v_c}: {OTAZKA}"
+                display_subj_ni = f"HLAS_NIE_{v_c}: {OTAZKA}"
+                
+                subj_za_url = urllib.parse.quote(display_subj_za)
+                subj_ni_url = urllib.parse.quote(display_subj_ni)
                 
                 st.write("### ✉️ Ako hlasovať?")
                 tab1, tab2 = st.tabs(["Rýchle hlasovanie", "Manuálny návod"])
@@ -146,15 +156,19 @@ try:
                 with tab1:
                     st.write("Kliknite na tlačidlo a odošlite vygenerovaný e-mail.")
                     b1, b2 = st.columns(2)
-                    b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL}?subject={subj_za}&body=Hlas_ANO_{v_c}", use_container_width=True)
-                    b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL}?subject={subj_ni}&body=Hlas_NIE_{v_c}", use_container_width=True)
+                    b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL}?subject={subj_za_url}&body=Hlas_ANO_{v_c}", use_container_width=True)
+                    b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL}?subject={subj_ni_url}&body=Hlas_NIE_{v_c}", use_container_width=True)
                 
                 with tab2:
-                    st.info("Ak sa vám neotvorí e-mailový program, pošlite ho manuálne:")
+                    st.info("Ak sa vám po kliknutí na tlačidlo neotvorí e-mail, pošlite ho manuálne:")
                     st.markdown(f"""
-                    1. Adresát: **{MAIL}**
-                    2. Predmet: **HLAS_ANO_{v_c}: {OTAZKA}** (pre ZA) <br> alebo **HLAS_NIE_{v_c}: {OTAZKA}** (pre PROTI)
-                    3. Text e-mailu môže zostať prázdny.
+                    1. Otvorte svoj e-mail (Gmail, Outlook, atď.).
+                    2. Adresát: **{MAIL}**
+                    3. Predmet (skopírujte presne): 
+                       * Pre hlas **ZA**: <br> `{display_subj_za}`
+                       * Pre hlas **PROTI**: <br> `{display_subj_ni}`
+                    4. Text e-mailu: (môže zostať prázdny).
+                    5. Odošlite e-mail.
                     """, unsafe_allow_html=True)
         else:
             st.error("Zadaný VS sa nenašiel v databáze platieb.")
