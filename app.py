@@ -28,7 +28,10 @@ if not st.session_state["authenticated"]:
 # --- NAČÍTANIE DÁT ---
 def get_df(sheet):
     try:
-        url = f"https://docs.google.com/spreadsheets/d/{SID}/gviz/tq?tqx=out:csv&sheet={sheet}"
+        # Pridanie cache_bust parametra zabezpečí, že Google Sheets nebudú posielať staré (zacachované) dáta
+        import time
+        cache_bust = int(time.time())
+        url = f"https://docs.google.com/spreadsheets/d/{SID}/gviz/tq?tqx=out:csv&sheet={sheet}&cb={cache_bust}"
         df = pd.read_csv(url)
         return df.dropna(how='all')
     except:
@@ -104,7 +107,8 @@ try:
                 
                 # SPRACOVANIE HLASOV
                 if not df_h.empty:
-                    # Hľadáme v stĺpci "Hlas", kam Make.com píše Subject (napr. HLAS_ANO_0001)
+                    # Kombinujeme stĺpce VS a Hlas pre istotu, ak by si VS zadal manuálne do stĺpca VS
+                    df_h["VS_Check"] = df_h["VS"].astype(str).str.strip().str.zfill(4)
                     df_h["Hlas_Upper"] = df_h["Hlas"].astype(str).str.upper()
                     
                     za = len(df_h[df_h["Hlas_Upper"].str.contains("ANO")])
@@ -114,25 +118,36 @@ try:
                     s1.metric("Priebežne ZA", za)
                     s2.metric("Priebežne PROTI", ni)
 
-                    # Hľadáme hlas používateľa podľa VS v texte
-                    moj_h = df_h[df_h["Hlas_Upper"].str.contains(v_c)]
+                    # Hľadanie hlasu: pozeráme sa buď do stĺpca VS alebo či je VS v texte predmetu
+                    moj_h = df_h[(df_h["VS_Check"] == v_c) | (df_h["Hlas_Upper"].str.contains(v_c))]
+                    
                     if not moj_h.empty:
                         posledny = moj_h.iloc[-1]["Hlas_Upper"]
                         vysledok_text = "ÁNO 👍" if "ANO" in posledny else "NIE 👎"
-                        st.warning(f"📢 **Váš už odovzdaný hlas:** {vysledok_text}")
+                        st.warning(f"📢 **Váš zaevidovaný hlas:** {vysledok_text}")
                     else:
                         st.info("Zatiaľ ste v tejto ankete nehlasovali.")
                 
-                # TEXT O HLASOVANÍ E-MAILOM
-                st.write("### ✉️ Inštrukcia k hlasovaniu")
-                st.markdown("""
-                Hlasovanie prebieha formou automatického e-mailu. Po kliknutí na tlačidlo nižšie sa vám 
-                otvorí váš e-mailový program s predvyplneným predmetom. **E-mail stačí len odoslať.** Váš hlas bude do systému zapísaný automaticky do niekoľkých minút.
-                """)
+                # KOMPLETNÝ NÁVOD PRE HLASOVANIE
+                st.write("### ✉️ Ako hlasovať?")
                 
-                b1, b2 = st.columns(2)
-                b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL}?subject=HLAS_ANO_{v_c}&body=Hlas_ANO_{v_c}", use_container_width=True)
-                b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL}?subject=HLAS_NIE_{v_c}&body=Hlas_NIE_{v_c}", use_container_width=True)
+                tab1, tab2 = st.tabs(["Rýchle hlasovanie", "Manuálny návod (ak nefungujú tlačidlá)"])
+                
+                with tab1:
+                    st.write("Kliknite na jedno z tlačidiel. Otvorí sa vám e-mail, ktorý stačí len odoslať.")
+                    b1, b2 = st.columns(2)
+                    b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL}?subject=HLAS_ANO_{v_c}&body=Hlas_ANO_{v_c}", use_container_width=True)
+                    b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL}?subject=HLAS_NIE_{v_c}&body=Hlas_NIE_{v_c}", use_container_width=True)
+                
+                with tab2:
+                    st.info("Ak sa vám po kliknutí na tlačidlo neotvorí e-mail, pošlite ho manuálne:")
+                    st.markdown(f"""
+                    1. Otvorte svoj e-mailový účet (Gmail, Outlook, atď.).
+                    2. Adresát: **{MAIL}**
+                    3. Predmet (DÔLEŽITÉ): **HLAS_ANO_{v_c}** (pre ZA) alebo **HLAS_NIE_{v_c}** (pre PROTI).
+                    4. Text e-mailu môže zostať prázdny.
+                    5. Odošlite e-mail.
+                    """)
 
     with st.expander("📜 Zoznam výdavkov a faktúry"):
         if not df_v.empty:
