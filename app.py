@@ -75,7 +75,7 @@ try:
             # --- PODMIENENÝ MODUL ANKETY ---
             if OTAZKA.upper() != "SKUSKA":
                 st.divider()
-                st.subheader("🗳️ Aktuálna anketová otázka")
+                st.subheader("🗳️ Súhlasím s postavením heliportu?")
                 
                 # Zobrazenie hlasu ak existuje
                 ex_hlas = df_h[df_h["VS"] == v]
@@ -115,4 +115,5 @@ try:
 
 except Exception as e:
     st.info(f"Načítavam systém... (Dáta sa synchronizujú)")
+
 
