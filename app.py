@@ -30,7 +30,6 @@ if not st.session_state["authenticated"]:
 # --- NAČÍTANIE DÁT ---
 def get_df(sheet):
     try:
-        # Zabránenie cachovaniu starých dát z Google Sheets
         cache_bust = int(time.time())
         url = f"https://docs.google.com/spreadsheets/d/{SID}/gviz/tq?tqx=out:csv&sheet={sheet}&cb={cache_bust}"
         df = pd.read_csv(url)
@@ -101,7 +100,6 @@ try:
     # --- 📢 NÁSTENKA OZNAMOV ---
     st.markdown("### 📢 Nástenka")
     if not df_n.empty:
-        # Otočenie poradia, aby boli najnovšie hore
         df_n_display = df_n.iloc[::-1]
         st.table(df_n_display)
     else:
@@ -109,8 +107,6 @@ try:
 
     # --- SEKČIA POUŽÍVATEĽA ---
     st.write("---")
-    
-    # NOVÝ VEĽKÝ NADPIS PRE VS
     st.markdown("### 🔑 Prístup k osobným platbám a ankete")
     vs_in = st.text_input("Zadajte váš VS (4 číslice):", label_visibility="collapsed", placeholder="Napr. 0123")
     
@@ -126,14 +122,12 @@ try:
                 st.divider()
                 st.subheader("🗳️ Aktuálna anketa")
                 
-                # Grafický box pre otázku
                 st.markdown(f"""
                 <div style="background-color: #f0f2f6; padding: 20px; border-radius: 10px; border-left: 5px solid #ff4b4b;">
                     <p style="color: #1f1f1f; font-size: 22px; font-weight: bold; margin-bottom: 0px;">{OTAZKA}</p>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # SPRACOVANIE HLASOV
                 if not df_h.empty:
                     df_h["VS_Check"] = df_h["VS"].astype(str).str.strip().str.zfill(4)
                     h_col = "Hlas" if "Hlas" in df_h.columns else "HLAS"
@@ -155,17 +149,29 @@ try:
                     else:
                         st.info("Zatiaľ ste v tejto ankete nehlasovali.")
                 
-                # HLASOVACIE TLAČIDLÁ
+                # HLASOVANIE A MANUÁL
+                st.write("### ✉️ Ako hlasovať?")
+                
                 display_subj_za = f"HLAS_ANO_{v_c}: {OTAZKA}"
                 display_subj_ni = f"HLAS_NIE_{v_c}: {OTAZKA}"
-                
                 subj_za_url = urllib.parse.quote(display_subj_za)
                 subj_ni_url = urllib.parse.quote(display_subj_ni)
+
+                tab_fast, tab_manual = st.tabs(["Rýchle hlasovanie", "Manuálny návod"])
                 
-                st.write("### ✉️ Ako hlasovať?")
-                b1, b2 = st.columns(2)
-                b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL}?subject={subj_za_url}&body=Hlas_ANO_{v_c}", use_container_width=True)
-                b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL}?subject={subj_ni_url}&body=Hlas_NIE_{v_c}", use_container_width=True)
+                with tab_fast:
+                    st.write("Kliknite na tlačidlo a odošlite vygenerovaný e-mail.")
+                    b1, b2 = st.columns(2)
+                    b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL}?subject={subj_za_url}&body=Hlas_ANO_{v_c}", use_container_width=True)
+                    b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL}?subject={subj_ni_url}&body=Hlas_NIE_{v_c}", use_container_width=True)
+                
+                with tab_manual:
+                    st.info("Ak tlačidlá nefungujú, pošlite e-mail manuálne:")
+                    st.markdown(f"""
+                    1. Adresát: **{MAIL}**
+                    2. Predmet pre ZA: `{display_subj_za}`
+                    3. Predmet pre PROTI: `{display_subj_ni}`
+                    """)
         else:
             st.error("Zadaný VS sa nenašiel v databáze platieb.")
 
