@@ -80,7 +80,7 @@ try:
                 fig.update_traces(line_color='#28a745', fillcolor='rgba(40, 167, 69, 0.2)')
                 st.plotly_chart(fig, use_container_width=True)
 
-    # 2. VÝDAVKY (OPRAVENÝ LINK)
+    # 2. VÝDAVKY (S KLIKATEĽNÝM ODKAZOM)
     with st.expander("📜 Zobraziť zoznam všetkých výdavkov", expanded=False):
         if not df_v.empty:
             cols_to_show = [c for c in df_v.columns if c not in ['dt', 'm_fmt']]
@@ -89,7 +89,7 @@ try:
                 hide_index=True, 
                 use_container_width=True,
                 column_config={
-                    "Doklad": st.column_config.LinkColumn("Doklad (kliknite)")
+                    "Doklad": st.column_config.LinkColumn("Doklad")
                 }
             )
         else:
@@ -148,14 +148,21 @@ try:
                 
                 tab1, tab2 = st.tabs(["Rýchle tlačidlá", "Manuálny návod"])
                 with tab1:
+                    st.write("Kliknite na tlačidlo pre automatické vytvorenie e-mailu:")
                     b1, b2 = st.columns(2)
                     b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL}?subject={urllib.parse.quote(subj_za)}&body=Hlas_ANO_{v_c}", use_container_width=True)
                     b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL}?subject={urllib.parse.quote(subj_ni)}&body=Hlas_NIE_{v_c}", use_container_width=True)
+                
                 with tab2:
-                    st.markdown(f"Adresát: **{MAIL}** \nPredmet pre ZA: `{subj_za}` \nPredmet pre PROTI: `{subj_ni}`")
+                    st.info("Ak tlačidlá nefungujú, pošlite e-mail manuálne s týmito údajmi:")
+                    st.markdown(f"""
+                    * 📧 Adresát: **{MAIL}**
+                    * 🟢 Predmet pre ZA: `{subj_za}`
+                    * 🔴 Predmet pre PROTI: `{subj_ni}`
+                    """)
 
         else:
-            st.error("VS sa nenašiel.")
+            st.error("VS sa nenašiel v databáze.")
 
 except Exception as e:
     st.error(f"Chyba: {e}")
