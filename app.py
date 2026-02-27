@@ -2,10 +2,10 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# --- KONFIGURÁCIA A NASTAVENIA ---
+# --- KONFIGURÁCIA ---
 MAIL = "tvoj@email.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
-OTAZKA = "Súhlasíte s investíciou do modernizácie osvetlenia?" # Tu zmeň otázku
+OTAZKA = "Súhlasíte s investíciou do modernizácie osvetlenia?"
 
 st.set_page_config(page_title="Victory Port", layout="centered", page_icon="🏡")
 
@@ -14,7 +14,6 @@ def get_df(sheet):
     return pd.read_csv(url)
 
 try:
-    # 1. NAČÍTANIE DÁT
     df_p = get_df("Platby")
     df_v = get_df("Vydavky")
     try:
@@ -23,7 +22,7 @@ try:
     except:
         df_h = pd.DataFrame(columns=["VS", "Hlas"])
 
-    # 2. FINANČNÁ LOGIKA
+    # LOGIKA FINANCIÍ
     df_p["Identifikácia VS"] = df_p["Identifikácia VS"].astype(str).str.zfill(4)
     stlpce_m = [c for c in df_p.columns if "/26" in c]
     p_mes = df_p[stlpce_m].apply(pd.to_numeric, errors="coerce").fillna(0).sum()
@@ -43,7 +42,6 @@ try:
     st.markdown("<h1 style='text-align: center;'>🏡 Portál správcu VICTORY PORT</h1>", unsafe_allow_html=True)
     st.write("---")
 
-    # METRIKY A GRAF
     c1, c2, c3 = st.columns(3)
     c1.metric("Fond celkom", f"{p_mes.sum():.2f} €")
     c2.metric("Výdavky celkom", f"{df_v['Suma'].sum():.2f} €")
@@ -67,21 +65,11 @@ try:
             st.success(f"Overenie úspešné. Vitajte, VS {v}")
             st.dataframe(moje, hide_index=True)
             
-            # --- PODMIENENÝ MODUL ANKETY ---
             if OTAZKA.upper() != "ŽIADNA ANKETA":
                 st.divider()
                 st.subheader("🗳️ Aktuálne hlasovanie")
+                st.markdown(f'<div style="background-color: #f0f2f6; padding: 20px; border-radius: 10px; border-left: 5px solid #ff4b4b;"><p style="color: #1f1f1f; font-size: 24px; font-weight: bold; margin-bottom: 0px;">{OTAZKA}</p></div>', unsafe_allow_html=True)
                 
-                # ZVÝRAZNENÁ OTÁZKA
-                st.markdown(f"""
-                <div style="background-color: #f0f2f6; padding: 20px; border-radius: 10px; border-left: 5px solid #ff4b4b;">
-                    <p style="color: #1f1f1f; font-size: 24px; font-weight: bold; margin-bottom: 0px;">
-                        {OTAZKA}
-                    </p>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # Štatistiky
                 za = len(df_h[df_h["Hlas"].astype(str).str.contains("ANO", na=False, case=False)])
                 ni = len(df_h[df_h["Hlas"].astype(str).str.contains("NIE", na=False, case=False)])
                 
@@ -90,34 +78,36 @@ try:
                 s1.metric("Priebežne ZA", za)
                 s2.metric("Priebežne PROTI", ni)
 
-                # HLAS POUŽÍVATEĽA (Logicky pod otázkou)
                 ex_hlas = df_h[df_h["VS"] == v]
                 if not ex_hlas.empty:
                     st.warning(f"📢 Váš doteraz evidovaný hlas: **{ex_hlas.iloc[-1]['Hlas'].upper()}**")
-                else:
-                    st.info("ℹ️ K tejto otázke sme zatiaľ váš hlas nezaevidovali.")
 
-                # Tlačidlá
-                predmet_skratka = (OTAZKA[:30] + '..') if len(OTAZKA) > 30 else OTAZKA
-                subject_ano = f"HLAS_ANO: {predmet_skratka} (VS {v})"
-                subject_nie = f"HLAS_NIE: {predmet_skratka} (VS {v})"
-                
-                st.write("### Odošlite / Zmeňte svoj hlas:")
+                p_skr = (OTAZKA[:30] + '..') if len(OTAZKA) > 30 else OTAZKA
                 b1, b2 = st.columns(2)
-                b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL}?subject={subject_ano}&body=Hlas_ANO_{v}", use_container_width=True)
-                b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL}?subject={subject_nie}&body=Hlas_NIE_{v}", use_container_width=True)
-                
-                with st.expander("Manuálny návod"):
-                    st.write(f"Mail na: {MAIL}, Predmet: HLAS_ZA: {OTAZKA} (VS {v})")
+                b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL}?subject=HLAS_ANO_{v}&body=Hlas_ANO_{v}", use_container_width=True)
+                b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL}?subject=HLAS_NIE_{v}&body=Hlas_NIE_{v}", use_container_width=True)
             else:
                 st.write("*(Momentálne neprebieha žiadne hlasovanie)*")
         else:
             st.error("VS sa nenašiel.")
 
-    # VÝDAVKY
+    # VÝDAVKY (VYLEPŠENÉ O DOKLADY)
     st.write("---")
-    with st.expander("📜 Zobraziť detailný zoznam výdavkov"):
-        st.dataframe(df_v[["Dátum", "Účel", "Suma"]], hide_index=True, use_container_width=True)
+    with st.expander("📜 Zobraziť detailný zoznam výdavkov s dokladmi"):
+        # Ak existuje stĺpec Doklad, Streamlit ho zobrazí ako klikateľný link
+        st.write("Kliknutím na odkaz v stĺpci 'Doklad' sa vám otvorí faktúra.")
+        
+        # Príprava zobrazenia (odstránenie pomocných stĺpcov pre graf)
+        cols_to_show = [c for c in df_v.columns if c not in ["dt", "m_fmt"]]
+        
+        st.dataframe(
+            df_v[cols_to_show], 
+            hide_index=True, 
+            use_container_width=True,
+            column_config={
+                "Doklad": st.column_config.LinkColumn("Odkaz na doklad")
+            }
+        )
 
 except Exception as e:
     st.info(f"Načítavam systém...")
