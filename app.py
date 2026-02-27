@@ -5,7 +5,7 @@ import plotly.express as px
 # --- KONFIGURÁCIA A NASTAVENIA ---
 MAIL = "tvoj@email.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
-OTAZKA = "Súhlasíte s postavením heliportu?" # Tu zmeň otázku alebo napíš "ŽIADNA ANKETA"
+OTAZKA = "Súhlasíte s investíciou do modernizácie osvetlenia?" # Tu zmeň otázku
 
 st.set_page_config(page_title="Victory Port", layout="centered", page_icon="🏡")
 
@@ -26,21 +26,18 @@ try:
     # 2. FINANČNÁ LOGIKA
     df_p["Identifikácia VS"] = df_p["Identifikácia VS"].astype(str).str.zfill(4)
     stlpce_m = [c for c in df_p.columns if "/26" in c]
-    p_mesacne = df_p[stlpce_m].apply(pd.to_numeric, errors="coerce").fillna(0).sum()
+    p_mes = df_p[stlpce_m].apply(pd.to_numeric, errors="coerce").fillna(0).sum()
     df_v["Suma"] = pd.to_numeric(df_v["Suma"], errors="coerce").fillna(0)
     
     if "Dátum" in df_v.columns:
         df_v["dt"] = pd.to_datetime(df_v["Dátum"], dayfirst=True, errors='coerce')
         df_v["m_fmt"] = df_v["dt"].dt.strftime('%m/%y')
-        v_mesacne = df_v.groupby("m_fmt")["Suma"].sum().reindex(stlpce_m, fill_value=0)
+        v_mes = df_v.groupby("m_fmt")["Suma"].sum().reindex(stlpce_m, fill_value=0)
     else:
-        v_mesacne = pd.Series(0, index=stlpce_m)
+        v_mes = pd.Series(0, index=stlpce_m)
 
-    df_graf = pd.DataFrame({
-        "Mesiac": stlpce_m,
-        "Zostatok": (p_mesacne.values - v_mesacne.values).cumsum()
-    })
-    df_graf = df_graf[p_mesacne.values > 0]
+    df_graf = pd.DataFrame({"Mesiac": stlpce_m, "Zostatok": (p_mes.values - v_mes.values).cumsum()})
+    df_graf = df_graf[p_mes.values > 0]
 
     # --- ZOBRAZENIE ---
     st.markdown("<h1 style='text-align: center;'>🏡 Portál správcu VICTORY PORT</h1>", unsafe_allow_html=True)
@@ -48,12 +45,10 @@ try:
 
     # METRIKY A GRAF
     c1, c2, c3 = st.columns(3)
-    c_p, c_v = p_mesacne.sum(), df_v["Suma"].sum()
-    c1.metric("Fond celkom", f"{c_p:.2f} €")
-    c2.metric("Výdavky celkom", f"{c_v:.2f} €")
-    c3.metric("Aktuálny zostatok", f"{(c_p - c_v):.2f} €")
+    c1.metric("Fond celkom", f"{p_mes.sum():.2f} €")
+    c2.metric("Výdavky celkom", f"{df_v['Suma'].sum():.2f} €")
+    c3.metric("Aktuálny zostatok", f"{(p_mes.sum() - df_v['Suma'].sum()):.2f} €")
 
-    st.subheader("📈 Vývoj zostatku fondu")
     if not df_graf.empty:
         fig = px.area(df_graf, x="Mesiac", y="Zostatok", template="plotly_dark")
         fig.update_traces(line_color='#28a745', fillcolor='rgba(40, 167, 69, 0.2)')
@@ -75,40 +70,45 @@ try:
             # --- PODMIENENÝ MODUL ANKETY ---
             if OTAZKA.upper() != "ŽIADNA ANKETA":
                 st.divider()
-                st.subheader("🗳️ Aktuálna anketová otázka")
+                st.subheader("🗳️ Aktuálne hlasovanie")
                 
-                # Zobrazenie hlasu ak existuje
-                ex_hlas = df_h[df_h["VS"] == v]
-                if not ex_hlas.empty:
-                    st.warning(f"📢 Váš evidovaný hlas: **{ex_hlas.iloc[-1]['Hlas'].upper()}**")
-                
-                st.info(f"**Otázka:** {OTAZKA}")
+                # ZVÝRAZNENÁ OTÁZKA
+                st.markdown(f"""
+                <div style="background-color: #f0f2f6; padding: 20px; border-radius: 10px; border-left: 5px solid #ff4b4b;">
+                    <p style="color: #1f1f1f; font-size: 24px; font-weight: bold; margin-bottom: 0px;">
+                        {OTAZKA}
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
                 
                 # Štatistiky
                 za = len(df_h[df_h["Hlas"].astype(str).str.contains("ANO", na=False, case=False)])
                 ni = len(df_h[df_h["Hlas"].astype(str).str.contains("NIE", na=False, case=False)])
                 
+                st.write("")
                 s1, s2 = st.columns(2)
                 s1.metric("Priebežne ZA", za)
                 s2.metric("Priebežne PROTI", ni)
 
-                # Dynamický predmet mailu: Otázka + VS
-                # Skracujeme otázku na 30 znakov pre prehľadnosť v predmete
+                # HLAS POUŽÍVATEĽA (Logicky pod otázkou)
+                ex_hlas = df_h[df_h["VS"] == v]
+                if not ex_hlas.empty:
+                    st.warning(f"📢 Váš doteraz evidovaný hlas: **{ex_hlas.iloc[-1]['Hlas'].upper()}**")
+                else:
+                    st.info("ℹ️ K tejto otázke sme zatiaľ váš hlas nezaevidovali.")
+
+                # Tlačidlá
                 predmet_skratka = (OTAZKA[:30] + '..') if len(OTAZKA) > 30 else OTAZKA
                 subject_ano = f"HLAS_ANO: {predmet_skratka} (VS {v})"
                 subject_nie = f"HLAS_NIE: {predmet_skratka} (VS {v})"
                 
-                l1 = f"mailto:{MAIL}?subject={subject_ano}&body=Hlasujem_ANO_na_otazku:_{OTAZKA}_(VS_{v})"
-                l2 = f"mailto:{MAIL}?subject={subject_nie}&body=Hlasujem_NIE_na_otazku:_{OTAZKA}_(VS_{v})"
-                
-                st.write("### Odošlite váš hlas:")
+                st.write("### Odošlite / Zmeňte svoj hlas:")
                 b1, b2 = st.columns(2)
-                b1.link_button("👍 HLASUJEM ZA", l1, use_container_width=True)
-                b2.link_button("👎 HLASUJEM PROTI", l2, use_container_width=True)
+                b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL}?subject={subject_ano}&body=Hlas_ANO_{v}", use_container_width=True)
+                b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL}?subject={subject_nie}&body=Hlas_NIE_{v}", use_container_width=True)
                 
-                with st.expander("Manuálny návod pre Gmail"):
-                    st.write(f"Pošlite mail na **{MAIL}**")
-                    st.write(f"Predmet: `HLAS_ZA: {OTAZKA} (VS {v})`")
+                with st.expander("Manuálny návod"):
+                    st.write(f"Mail na: {MAIL}, Predmet: HLAS_ZA: {OTAZKA} (VS {v})")
             else:
                 st.write("*(Momentálne neprebieha žiadne hlasovanie)*")
         else:
@@ -121,5 +121,3 @@ try:
 
 except Exception as e:
     st.info(f"Načítavam systém...")
-
-
