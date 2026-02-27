@@ -8,7 +8,7 @@ import time
 # Tieto údaje si uprav podľa potreby
 MAIL = "petermarkuska@gmail.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
-OTAZKA = "Nainštalujeme tenisový kurt?"
+OTAZKA = "Postaviť heliport?"
 HLAVNE_HESLO = "Victory2026" 
 
 st.set_page_config(page_title="Victory Port", layout="centered", page_icon="🏡")
@@ -197,5 +197,3 @@ except Exception as e:
     st.error(f"Kritická chyba: {e}")
 
 st.caption("© 2026 Victory Port | Správa areálu")
-
-
