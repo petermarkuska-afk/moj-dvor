@@ -100,9 +100,16 @@ try:
     else:
         st.info("Žiadne nové oznamy.")
 
-    # --- 🛠️ UPRAVENÁ SEKČIA: PODNET SPRÁVCOVI (AKO POZNÁMKA) ---
+    # --- 🛠️ SEKČIA: PODNET SPRÁVCOVI (TLAČIDLO + POZNÁMKA) ---
     st.markdown("### 🛠️ Podnet pre správcu")
-    st.info(f"Akýkoľvek podnet, nahlásenie poruchy alebo otázku posielajte e-mailom priamo správcovi na: **{MAIL}**")
+    msg_text = st.text_area("Napíšte váš podnet, otázku alebo nahláste poruchu:", placeholder="Napr. Nesvieti lampa pri vjazde...")
+    
+    if msg_text:
+        mail_subj = "Podnet z portálu Victory Port"
+        mail_link = f"mailto:{MAIL}?subject={urllib.parse.quote(mail_subj)}&body={urllib.parse.quote(msg_text)}"
+        st.link_button("🚀 Odoslať správu správcovi", mail_link, use_container_width=True)
+    
+    st.info(f"Ak tlačidlo vyššie nefunguje, pošlite e-mail manuálne na: **{MAIL}**")
 
     st.write("---")
 
@@ -147,19 +154,23 @@ try:
                     else:
                         st.info("Zatiaľ ste v tejto ankete nehlasovali.")
                 
-                # HLASOVANIE (AKO POZNÁMKA)
-                st.write("### ✉️ Ako hlasovať?")
-                st.info("Hlasovanie prebieha zaslaním e-mailu z vašej súkromnej adresy.")
-                
+                st.write("### ✉️ Odoslať hlas")
                 subj_za = f"HLAS_ANO_{v_c}: {OTAZKA}"
                 subj_ni = f"HLAS_NIE_{v_c}: {OTAZKA}"
                 
-                st.markdown(f"""
-                Pošlite e-mail na adresu: **{MAIL}**
+                tab1, tab2 = st.tabs(["Rýchle tlačidlá", "Manuálny návod"])
+                with tab1:
+                    b1, b2 = st.columns(2)
+                    b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL}?subject={urllib.parse.quote(subj_za)}&body=Hlas_ANO_{v_c}", use_container_width=True)
+                    b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL}?subject={urllib.parse.quote(subj_ni)}&body=Hlas_NIE_{v_c}", use_container_width=True)
                 
-                * 🟢 Predmet pre ZA: `{subj_za}`
-                * 🔴 Predmet pre PROTI: `{subj_ni}`
-                """)
+                with tab2:
+                    st.info("Ak tlačidlá nefungujú, pošlite e-mail manuálne:")
+                    st.markdown(f"""
+                    * 📧 Adresát: **{MAIL}**
+                    * 🟢 Predmet pre ZA: `{subj_za}`
+                    * 🔴 Predmet pre PROTI: `{subj_ni}`
+                    """)
 
         else:
             st.error("Zadaný VS sa nenašiel v databáze platieb.")
