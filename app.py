@@ -30,6 +30,7 @@ if not st.session_state["authenticated"]:
 # --- NAČÍTANIE DÁT ---
 def get_df(sheet):
     try:
+        # Zabránenie cachovaniu starých dát z Google Sheets
         cache_bust = int(time.time())
         url = f"https://docs.google.com/spreadsheets/d/{SID}/gviz/tq?tqx=out:csv&sheet={sheet}&cb={cache_bust}"
         df = pd.read_csv(url)
@@ -41,7 +42,7 @@ try:
     df_p = get_df("Platby")
     df_v = get_df("Vydavky")
     df_h = get_df("Hlasovanie")
-    df_n = get_df("Nastenka") # Načítanie hárka Nástenka
+    df_n = get_df("Nastenka")
 
     # 1. ČISTENIE DÁT PRE FINANCIE A GRAF
     if not df_p.empty:
@@ -97,10 +98,10 @@ try:
         else:
             st.info("Žiadne výdavky neboli zatiaľ zaevidované.")
 
-    # --- 📢 NÁSTENKA OZNAMOV (V TABUĽKE) ---
-    st.subheader("📢 Nástenka")
+    # --- 📢 NÁSTENKA OZNAMOV ---
+    st.markdown("### 📢 Nástenka")
     if not df_n.empty:
-        # Otočíme poradie, aby najnovšie oznamy boli hore
+        # Otočenie poradia, aby boli najnovšie hore
         df_n_display = df_n.iloc[::-1]
         st.table(df_n_display)
     else:
@@ -108,7 +109,10 @@ try:
 
     # --- SEKČIA POUŽÍVATEĽA ---
     st.write("---")
-    vs_in = st.text_input("Zadajte váš VS (4 číslice) pre prístup k ankete a platbám:")
+    
+    # NOVÝ VEĽKÝ NADPIS PRE VS
+    st.markdown("### 🔑 Prístup k osobným platbám a ankete")
+    vs_in = st.text_input("Zadajte váš VS (4 číslice):", label_visibility="collapsed", placeholder="Napr. 0123")
     
     if vs_in:
         v_c = vs_in.strip().zfill(4)
@@ -167,3 +171,6 @@ try:
 
 except Exception as e:
     st.error(f"Chyba systému: {e}")
+
+st.write("---")
+st.caption("© 2026 Victory Port | Správa areálu")
