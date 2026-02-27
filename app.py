@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 
 # --- KONFIGURÁCIA ---
-MAIL = "tvoj@email.com"
+MAIL = "pmarkuska@gmail.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
 OTAZKA = "Súhlasíte s investíciou do modernizácie osvetlenia?"
 HLAVNE_HESLO = "Victory2026" 
@@ -39,7 +39,7 @@ try:
     df_v = get_df("Vydavky")
     df_h = get_df("Hlasovanie")
 
-    # 1. ČISTENIE DÁT PRE FINANCIE
+    # 1. ČISTENIE DÁT
     if not df_p.empty:
         df_p["Identifikácia VS"] = df_p["Identifikácia VS"].astype(str).str.strip().str.zfill(4)
         stlpce_m = [c for c in df_p.columns if "/26" in c]
@@ -57,7 +57,7 @@ try:
         st.rerun()
     st.write("---")
 
-    # METRIKY A GRAF
+    # METRIKY
     if not p_mes.empty:
         m1, m2, m3 = st.columns(3)
         v_sum = df_v["Suma"].sum() if not df_v.empty else 0
@@ -65,6 +65,7 @@ try:
         m2.metric("Výdavky celkom", f"{v_sum:.2f} €")
         m3.metric("Aktuálny zostatok", f"{(p_mes.sum() - v_sum):.2f} €")
 
+        # GRAF
         if "Dátum" in df_v.columns and not df_v.empty:
             df_v["dt"] = pd.to_datetime(df_v["Dátum"], dayfirst=True, errors='coerce')
             df_v["m_fmt"] = df_v["dt"].dt.strftime('%m/%y')
@@ -89,3 +90,53 @@ try:
     
     if vs_in:
         v_c = vs_in.strip().zfill(4)
+        moje = df_p[df_p["Identifikácia VS"] == v_c]
+        
+        if not moje.empty:
+            st.success(f"Overené pre VS: {v_c}")
+            st.dataframe(moje, hide_index=True)
+            
+            if OTAZKA.upper() != "ŽIADNA ANKETA":
+                st.divider()
+                st.subheader("🗳️ Aktuálna anketa")
+                
+                # Grafický box pre otázku
+                st.markdown(f"""
+                <div style="background-color: #f0f2f6; padding: 20px; border-radius: 10px; border-left: 5px solid #ff4b4b;">
+                    <p style="color: #1f1f1f; font-size: 22px; font-weight: bold; margin-bottom: 0px;">{OTAZKA}</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Štatistika hlasov (z Make.com)
+                if not df_h.empty:
+                    df_h["Hlas_Upper"] = df_h["Hlas"].astype(str).str.upper()
+                    za = len(df_h[df_h["Hlas_Upper"].str.contains("ANO")])
+                    ni = len(df_h[df_h["Hlas_Upper"].str.contains("NIE")])
+                    
+                    s1, s2 = st.columns(2)
+                    s1.metric("Hlasy ZA", za)
+                    s2.metric("Hlasy PROTI", ni)
+
+                    # Zistenie hlasu používateľa
+                    moj_h = df_h[df_h["Hlas_Upper"].str.contains(v_c)]
+                    if not moj_h.empty:
+                        posledny = moj_h.iloc[-1]["Hlas_Upper"]
+                        vysledok_text = "ÁNO 👍" if "ANO" in posledny else "NIE 👎"
+                        st.warning(f"📢 Váš zaevidovaný hlas: **{vysledok_text}**")
+                    else:
+                        st.info("Zatiaľ ste nehlasovali.")
+                
+                st.write("### Hlasujte kliknutím:")
+                b1, b2 = st.columns(2)
+                # Tlačidlá s mailto linkami pre Make.com
+                b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL}?subject=HLAS_ANO_{v_c}&body=Hlas_ANO_{v_c}", use_container_width=True)
+                b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL}?subject=HLAS_NIE_{v_c}&body=Hlas_NIE_{v_c}", use_container_width=True)
+
+    with st.expander("📜 Zoznam výdavkov"):
+        if not df_v.empty:
+            cols_show = [c for c in df_v.columns if c not in ['dt', 'm_fmt']]
+            st.dataframe(df_v[cols_show], hide_index=True, use_container_width=True,
+                         column_config={"Doklad": st.column_config.LinkColumn("Faktúra")})
+
+except Exception as e:
+    st.error(f"Chyba pri načítaní: {e}")
