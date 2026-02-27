@@ -10,7 +10,7 @@ SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
 OTAZKA = "Postaviť heliport?"
 HLAVNE_HESLO = "Victory2026" 
 
-st.set_page_config(page_title="Portál na správu Victory Port", layout="centered", page_icon="🏡")
+st.set_page_config(page_title="Victory Port", layout="centered", page_icon="🏡")
 
 # --- ZÁMOK STRÁNKY ---
 if "authenticated" not in st.session_state:
@@ -175,6 +175,7 @@ try:
 
 except Exception as e:
     st.error(f"Chyba systému: {e}")
+
 
 
 
