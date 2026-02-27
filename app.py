@@ -57,7 +57,7 @@ try:
         st.rerun()
     st.write("---")
 
-    # METRIKY
+    # METRIKY A GRAF
     if not p_mes.empty:
         m1, m2, m3 = st.columns(3)
         v_sum = df_v["Suma"].sum() if not df_v.empty else 0
@@ -65,7 +65,6 @@ try:
         m2.metric("Výdavky celkom", f"{v_sum:.2f} €")
         m3.metric("Aktuálny zostatok", f"{(p_mes.sum() - v_sum):.2f} €")
 
-        # GRAF
         if "Dátum" in df_v.columns and not df_v.empty:
             df_v["dt"] = pd.to_datetime(df_v["Dátum"], dayfirst=True, errors='coerce')
             df_v["m_fmt"] = df_v["dt"].dt.strftime('%m/%y')
@@ -73,12 +72,8 @@ try:
         else:
             v_mes = pd.Series(0, index=stlpce_m)
 
-        df_graf = pd.DataFrame({
-            "Mesiac": stlpce_m, 
-            "Zostatok": (p_mes.values - v_mes.values).cumsum()
-        }).reset_index(drop=True)
+        df_graf = pd.DataFrame({"Mesiac": stlpce_m, "Zostatok": (p_mes.values - v_mes.values).cumsum()}).reset_index(drop=True)
         df_graf = df_graf[p_mes.values > 0]
-        
         if not df_graf.empty:
             fig = px.area(df_graf, x="Mesiac", y="Zostatok", template="plotly_dark")
             fig.update_traces(line_color='#28a745', fillcolor='rgba(40, 167, 69, 0.2)')
@@ -107,36 +102,43 @@ try:
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Štatistika hlasov (z Make.com)
+                # SPRACOVANIE HLASOV
                 if not df_h.empty:
+                    # Hľadáme v stĺpci "Hlas", kam Make.com píše Subject (napr. HLAS_ANO_0001)
                     df_h["Hlas_Upper"] = df_h["Hlas"].astype(str).str.upper()
+                    
                     za = len(df_h[df_h["Hlas_Upper"].str.contains("ANO")])
                     ni = len(df_h[df_h["Hlas_Upper"].str.contains("NIE")])
                     
                     s1, s2 = st.columns(2)
-                    s1.metric("Hlasy ZA", za)
-                    s2.metric("Hlasy PROTI", ni)
+                    s1.metric("Priebežne ZA", za)
+                    s2.metric("Priebežne PROTI", ni)
 
-                    # Zistenie hlasu používateľa
+                    # Hľadáme hlas používateľa podľa VS v texte
                     moj_h = df_h[df_h["Hlas_Upper"].str.contains(v_c)]
                     if not moj_h.empty:
                         posledny = moj_h.iloc[-1]["Hlas_Upper"]
                         vysledok_text = "ÁNO 👍" if "ANO" in posledny else "NIE 👎"
-                        st.warning(f"📢 Váš zaevidovaný hlas: **{vysledok_text}**")
+                        st.warning(f"📢 **Váš už odovzdaný hlas:** {vysledok_text}")
                     else:
-                        st.info("Zatiaľ ste nehlasovali.")
+                        st.info("Zatiaľ ste v tejto ankete nehlasovali.")
                 
-                st.write("### Hlasujte kliknutím:")
+                # TEXT O HLASOVANÍ E-MAILOM
+                st.write("### ✉️ Inštrukcia k hlasovaniu")
+                st.markdown("""
+                Hlasovanie prebieha formou automatického e-mailu. Po kliknutí na tlačidlo nižšie sa vám 
+                otvorí váš e-mailový program s predvyplneným predmetom. **E-mail stačí len odoslať.** Váš hlas bude do systému zapísaný automaticky do niekoľkých minút.
+                """)
+                
                 b1, b2 = st.columns(2)
-                # Tlačidlá s mailto linkami pre Make.com
                 b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL}?subject=HLAS_ANO_{v_c}&body=Hlas_ANO_{v_c}", use_container_width=True)
                 b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL}?subject=HLAS_NIE_{v_c}&body=Hlas_NIE_{v_c}", use_container_width=True)
 
-    with st.expander("📜 Zoznam výdavkov"):
+    with st.expander("📜 Zoznam výdavkov a faktúry"):
         if not df_v.empty:
             cols_show = [c for c in df_v.columns if c not in ['dt', 'm_fmt']]
             st.dataframe(df_v[cols_show], hide_index=True, use_container_width=True,
-                         column_config={"Doklad": st.column_config.LinkColumn("Faktúra")})
+                         column_config={"Doklad": st.column_config.LinkColumn("Odkaz na faktúru")})
 
 except Exception as e:
-    st.error(f"Chyba pri načítaní: {e}")
+    st.error(f"Chyba systému: {e}")
