@@ -39,7 +39,7 @@ try:
     df_v = get_df("Vydavky")
     df_h = get_df("Hlasovanie")
 
-    # 1. ČISTENIE DÁT
+    # 1. ČISTENIE DÁT PRE FINANCIE
     if not df_p.empty:
         df_p["Identifikácia VS"] = df_p["Identifikácia VS"].astype(str).str.strip().str.zfill(4)
         stlpce_m = [c for c in df_p.columns if "/26" in c]
@@ -50,14 +50,14 @@ try:
     if not df_v.empty:
         df_v["Suma"] = pd.to_numeric(df_v["Suma"], errors="coerce").fillna(0)
 
-    # UI HLAVIČKA
+    # --- UI HLAVIČKA ---
     st.title("🏡 Victory Port")
     if st.button("Odhlásiť"):
         st.session_state["authenticated"] = False
         st.rerun()
     st.write("---")
 
-    # METRIKY
+    # METRIKY A GRAF
     if not p_mes.empty:
         m1, m2, m3 = st.columns(3)
         v_sum = df_v["Suma"].sum() if not df_v.empty else 0
@@ -65,7 +65,6 @@ try:
         m2.metric("Výdavky celkom", f"{v_sum:.2f} €")
         m3.metric("Aktuálny zostatok", f"{(p_mes.sum() - v_sum):.2f} €")
 
-        # GRAF
         if "Dátum" in df_v.columns and not df_v.empty:
             df_v["dt"] = pd.to_datetime(df_v["Dátum"], dayfirst=True, errors='coerce')
             df_v["m_fmt"] = df_v["dt"].dt.strftime('%m/%y')
@@ -77,7 +76,6 @@ try:
             "Mesiac": stlpce_m, 
             "Zostatok": (p_mes.values - v_mes.values).cumsum()
         }).reset_index(drop=True)
-        
         df_graf = df_graf[p_mes.values > 0]
         
         if not df_graf.empty:
@@ -91,42 +89,3 @@ try:
     
     if vs_in:
         v_c = vs_in.strip().zfill(4)
-        moje = df_p[df_p["Identifikácia VS"] == v_c]
-        
-        if not moje.empty:
-            st.success(f"Overené pre VS: {v_c}")
-            st.dataframe(moje, hide_index=True)
-            
-            if OTAZKA.upper() != "ŽIADNA ANKETA":
-                st.divider()
-                st.subheader("🗳️ Aktuálna anketa")
-                st.info(OTAZKA)
-                
-                if not df_h.empty:
-                    df_h["Hlas_Upper"] = df_h["Hlas"].astype(str).str.upper()
-                    za = len(df_h[df_h["Hlas_Upper"].str.contains("ANO")])
-                    ni = len(df_h[df_h["Hlas_Upper"].str.contains("NIE")])
-                    
-                    s1, s2 = st.columns(2)
-                    s1.metric("Hlasy ZA", za)
-                    s2.metric("Hlasy PROTI", ni)
-
-                    moj_h = df_h[df_h["Hlas_Upper"].str.contains(v_c)]
-                    if not moj_h.empty:
-                        posledny = moj_h.iloc[-1]["Hlas_Upper"]
-                        stav = "ÁNO 👍" if "ANO" in posledny else "NIE 👎"
-                        st.warning(f"Váš posledný hlas: **{stav}**")
-                
-                st.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL}?subject=HLAS_ANO_{v_c}&body=Hlas_ANO_{v_c}")
-                st.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL}?subject=HLAS_NIE_{v_c}&body=HLAS_NIE_{v_c}")
-
-    with st.expander("📜 Zoznam všetkých výdavkov"):
-        if not df_v.empty:
-            cols_show = [c for c in df_v.columns if c not in ['dt', 'm_fmt']]
-            st.dataframe(df_v[cols_show], hide_index=True, 
-                         column_config={"Doklad": st.column_config.LinkColumn("Faktúra")})
-        else:
-            st.write("Žiadne výdavky neboli nájdené.")
-
-except Exception as e:
-    st.error(f"Chyba systému: {e}")
