@@ -5,7 +5,7 @@ import plotly.express as px
 # --- KONFIGURÁCIA A NASTAVENIA ---
 MAIL = "tvoj@email.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
-OTAZKA = "ŽIADNA ANKETA" # Tu zmeň otázku alebo napíš "ŽIADNA ANKETA"
+OTAZKA = "Súhlasíte s postavením heliportu?" # Tu zmeň otázku alebo napíš "ŽIADNA ANKETA"
 
 st.set_page_config(page_title="Victory Port", layout="centered", page_icon="🏡")
 
@@ -121,4 +121,5 @@ try:
 
 except Exception as e:
     st.info(f"Načítavam systém...")
+
 
