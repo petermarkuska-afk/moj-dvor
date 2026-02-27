@@ -50,7 +50,7 @@ try:
         st.rerun()
     st.write("---")
 
-    # 1. FINANCIE A GRAF (VRÁTENÉ SPÄŤ)
+    # 1. FINANCIE A GRAF
     if not df_p.empty:
         df_p["Identifikácia VS"] = df_p["Identifikácia VS"].astype(str).str.strip().str.zfill(4)
         stlpce_m = [c for c in df_p.columns if "/26" in c]
@@ -100,6 +100,16 @@ try:
     else:
         st.info("Žiadne nové oznamy.")
 
+    # --- 📩 PRESUNUTÁ SEKČIA: SPRÁVA SPRÁVCOVI ---
+    st.markdown("### 🛠️ Podnet pre správcu")
+    msg_text = st.text_area("Napíšte váš podnet, otázku alebo nahláste poruchu:", placeholder="Napr. Nesvieti lampa pri vjazde...")
+    if msg_text:
+        # Pripravíme odkaz, ak by používateľ už mal zadaný VS nižšie, použijeme ho, inak dáme univerzálny predmet
+        mail_subj = "Podnet z portálu Victory Port"
+        mail_link = f"mailto:{MAIL}?subject={urllib.parse.quote(mail_subj)}&body={urllib.parse.quote(msg_text)}"
+        st.link_button("🚀 Odoslať správu správcovi", mail_link, use_container_width=True)
+        st.caption("Poznámka: Po kliknutí sa otvorí váš e-mailový program.")
+
     st.write("---")
 
     # 4. SEKČIA POUŽÍVATEĽA
@@ -119,11 +129,9 @@ try:
                 st.subheader(f"🗳️ Anketa: {OTAZKA}")
                 
                 if not df_h.empty:
-                    # Vyčistenie názvov stĺpcov
                     df_h.columns = [c.strip() for c in df_h.columns]
                     h_col = next((c for c in df_h.columns if "HLAS" in c.upper()), df_h.columns[-1])
                     
-                    # Výsledky ankety
                     za = len(df_h[df_h[h_col].astype(str).str.upper().str.contains("ANO")])
                     ni = len(df_h[df_h[h_col].astype(str).str.upper().str.contains("NIE")])
                     
@@ -131,12 +139,10 @@ try:
                     s1.metric("Priebežne ZA", za)
                     s2.metric("Priebežne PROTI", ni)
 
-                    # --- OPRAVENÉ ROBUSTNÉ HĽADANIE HLASU ---
                     def clean_val(val):
                         return str(val).strip().lstrip('0')
 
                     v_c_clean = v_c.lstrip('0')
-                    # Hľadáme VS v ktoromkoľvek stĺpci riadku
                     moj_h = df_h[df_h.apply(lambda row: any(clean_val(x) == v_c_clean for x in row), axis=1)]
                     
                     if not moj_h.empty:
@@ -147,25 +153,19 @@ try:
                     else:
                         st.info("Zatiaľ ste v tejto ankete nehlasovali.")
                 
-                # HLASOVANIE
                 st.write("### ✉️ Odoslať hlas")
                 subj_za = f"HLAS_ANO_{v_c}: {OTAZKA}"
                 subj_ni = f"HLAS_NIE_{v_c}: {OTAZKA}"
                 
                 tab1, tab2 = st.tabs(["Rýchle tlačidlá", "Manuálny návod"])
                 with tab1:
-                    st.write("Kliknite na tlačidlo:")
                     b1, b2 = st.columns(2)
                     b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL}?subject={urllib.parse.quote(subj_za)}&body=Hlas_ANO_{v_c}", use_container_width=True)
                     b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL}?subject={urllib.parse.quote(subj_ni)}&body=Hlas_NIE_{v_c}", use_container_width=True)
                 
                 with tab2:
                     st.info("Ak tlačidlá nefungujú, pošlite e-mail manuálne:")
-                    st.markdown(f"""
-                    * 📧 Adresát: **{MAIL}**
-                    * 🟢 Predmet pre ZA: `{subj_za}`
-                    * 🔴 Predmet pre PROTI: `{subj_ni}`
-                    """)
+                    st.markdown(f"* 📧 Adresát: **{MAIL}**\n* 🟢 Predmet pre ZA: `{subj_za}`\n* 🔴 Predmet pre PROTI: `{subj_ni}`")
 
         else:
             st.error("Zadaný VS sa nenašiel v databáze platieb.")
