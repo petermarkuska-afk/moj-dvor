@@ -30,7 +30,6 @@ if not st.session_state["authenticated"]:
 # --- NAČÍTANIE DÁT ---
 def get_df(sheet):
     try:
-        # Zabránenie cachovaniu starých dát z Google Sheets
         cache_bust = int(time.time())
         url = f"https://docs.google.com/spreadsheets/d/{SID}/gviz/tq?tqx=out:csv&sheet={sheet}&cb={cache_bust}"
         df = pd.read_csv(url)
@@ -42,6 +41,7 @@ try:
     df_p = get_df("Platby")
     df_v = get_df("Vydavky")
     df_h = get_df("Hlasovanie")
+    df_n = get_df("Nastenka") # Načítanie hárka Nástenka
 
     # 1. ČISTENIE DÁT PRE FINANCIE A GRAF
     if not df_p.empty:
@@ -87,7 +87,7 @@ try:
             fig.update_traces(line_color='#28a745', fillcolor='rgba(40, 167, 69, 0.2)')
             st.plotly_chart(fig, use_container_width=True)
 
-    # --- ZOZNAM VÝDAVKOV (POSUNUTÝ HORE) ---
+    # --- ZOZNAM VÝDAVKOV ---
     with st.expander("📜 Zobraziť zoznam všetkých výdavkov", expanded=False):
         if not df_v.empty:
             cols_to_show = [c for c in df_v.columns if c not in ['dt', 'm_fmt']]
@@ -96,6 +96,15 @@ try:
                          column_config={"Doklad": st.column_config.LinkColumn("Faktúra")})
         else:
             st.info("Žiadne výdavky neboli zatiaľ zaevidované.")
+
+    # --- 📢 NÁSTENKA OZNAMOV (V TABUĽKE) ---
+    st.subheader("📢 Nástenka")
+    if not df_n.empty:
+        # Otočíme poradie, aby najnovšie oznamy boli hore
+        df_n_display = df_n.iloc[::-1]
+        st.table(df_n_display)
+    else:
+        st.info("Žiadne oznamy na nástenke.")
 
     # --- SEKČIA POUŽÍVATEĽA ---
     st.write("---")
@@ -122,9 +131,9 @@ try:
                 
                 # SPRACOVANIE HLASOV
                 if not df_h.empty:
-                    # Očistenie stĺpcov pre porovnávanie
                     df_h["VS_Check"] = df_h["VS"].astype(str).str.strip().str.zfill(4)
-                    df_h["Hlas_Upper"] = df_h["Hlas"].astype(str).str.upper()
+                    h_col = "Hlas" if "Hlas" in df_h.columns else "HLAS"
+                    df_h["Hlas_Upper"] = df_h[h_col].astype(str).str.upper()
                     
                     za = len(df_h[df_h["Hlas_Upper"].str.contains("ANO")])
                     ni = len(df_h[df_h["Hlas_Upper"].str.contains("NIE")])
@@ -133,7 +142,6 @@ try:
                     s1.metric("Priebežne ZA", za)
                     s2.metric("Priebežne PROTI", ni)
 
-                    # Hľadanie hlasu (v stĺpci VS alebo v texte predmetu)
                     moj_h = df_h[(df_h["VS_Check"] == v_c) | (df_h["Hlas_Upper"].str.contains(v_c))]
                     
                     if not moj_h.empty:
@@ -143,7 +151,7 @@ try:
                     else:
                         st.info("Zatiaľ ste v tejto ankete nehlasovali.")
                 
-                # Príprava predmetu pre e-mail
+                # HLASOVACIE TLAČIDLÁ
                 display_subj_za = f"HLAS_ANO_{v_c}: {OTAZKA}"
                 display_subj_ni = f"HLAS_NIE_{v_c}: {OTAZKA}"
                 
@@ -151,33 +159,11 @@ try:
                 subj_ni_url = urllib.parse.quote(display_subj_ni)
                 
                 st.write("### ✉️ Ako hlasovať?")
-                tab1, tab2 = st.tabs(["Rýchle hlasovanie", "Manuálny návod"])
-                
-                with tab1:
-                    st.write("Kliknite na tlačidlo a odošlite vygenerovaný e-mail.")
-                    b1, b2 = st.columns(2)
-                    b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL}?subject={subj_za_url}&body=Hlas_ANO_{v_c}", use_container_width=True)
-                    b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL}?subject={subj_ni_url}&body=Hlas_NIE_{v_c}", use_container_width=True)
-                
-                with tab2:
-                    st.info("Ak sa vám po kliknutí na tlačidlo neotvorí e-mail, pošlite ho manuálne:")
-                    st.markdown(f"""
-                    1. Otvorte svoj e-mail (Gmail, Outlook, atď.).
-                    2. Adresát: **{MAIL}**
-                    3. Predmet (skopírujte presne): 
-                       * Pre hlas **ZA**: <br> `{display_subj_za}`
-                       * Pre hlas **PROTI**: <br> `{display_subj_ni}`
-                    4. Text e-mailu: (môže zostať prázdny).
-                    5. Odošlite e-mail.
-                    """, unsafe_allow_html=True)
+                b1, b2 = st.columns(2)
+                b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL}?subject={subj_za_url}&body=Hlas_ANO_{v_c}", use_container_width=True)
+                b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL}?subject={subj_ni_url}&body=Hlas_NIE_{v_c}", use_container_width=True)
         else:
             st.error("Zadaný VS sa nenašiel v databáze platieb.")
 
 except Exception as e:
     st.error(f"Chyba systému: {e}")
-
-
-
-
-
-
