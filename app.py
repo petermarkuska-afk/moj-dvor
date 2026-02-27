@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 
 # --- KONFIGURÁCIA ---
-MAIL = "pmarkuska@gmail.com"
+MAIL = "petermarkuska@gmail.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
 OTAZKA = "Súhlasíte s investíciou do modernizácie osvetlenia?"
 HLAVNE_HESLO = "Victory2026" 
@@ -157,3 +157,4 @@ try:
 
 except Exception as e:
     st.error(f"Chyba systému: {e}")
+
