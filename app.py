@@ -7,7 +7,7 @@ import time
 # --- KONFIGURÁCIA ---
 MAIL = "petermarkuska@gmail.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
-OTAZKA = "ŽIADNA ANKETA"
+OTAZKA = "Postaviť heliport?"
 HLAVNE_HESLO = "Victory2026" 
 
 st.set_page_config(page_title="Victory Port", layout="centered", page_icon="🏡")
@@ -175,4 +175,5 @@ try:
 
 except Exception as e:
     st.error(f"Chyba systému: {e}")
+
 
