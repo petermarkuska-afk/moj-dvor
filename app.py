@@ -80,11 +80,20 @@ try:
                 fig.update_traces(line_color='#28a745', fillcolor='rgba(40, 167, 69, 0.2)')
                 st.plotly_chart(fig, use_container_width=True)
 
-    # 2. VÝDAVKY
+    # 2. VÝDAVKY (OPRAVENÝ LINK)
     with st.expander("📜 Zobraziť zoznam všetkých výdavkov", expanded=False):
         if not df_v.empty:
             cols_to_show = [c for c in df_v.columns if c not in ['dt', 'm_fmt']]
-            st.dataframe(df_v[cols_to_show], hide_index=True, use_container_width=True)
+            st.dataframe(
+                df_v[cols_to_show], 
+                hide_index=True, 
+                use_container_width=True,
+                column_config={
+                    "Doklad": st.column_config.LinkColumn("Doklad (kliknite)")
+                }
+            )
+        else:
+            st.info("Žiadne výdavky neboli zatiaľ zaevidované.")
 
     # 3. NÁSTENKA
     st.markdown("### 📢 Nástenka")
@@ -111,37 +120,24 @@ try:
                 st.divider()
                 st.subheader(f"🗳️ Anketa: {OTAZKA}")
                 
-                # --- OPRAVENÁ LOGIKA HLASOVANIA ---
                 if not df_h.empty:
-                    # Pre istotu vyčistíme názvy stĺpcov od medzier
                     df_h.columns = [c.strip() for c in df_h.columns]
+                    h_col = next((c for c in df_h.columns if "HLAS" in c.upper()), df_h.columns[-1])
                     
-                    # Identifikujeme správne stĺpce
-                    h_col = "Hlas" if "Hlas" in df_h.columns else ("HLAS" if "HLAS" in df_h.columns else df_h.columns[-1])
-                    vs_col = "VS" if "VS" in df_h.columns else None
-                    
-                    # Prevedieme stĺpce na text a vyčistíme ich
-                    df_h["Hlas_Clean"] = df_h[h_col].astype(str).str.upper().str.strip()
-                    
-                    za = len(df_h[df_h["Hlas_Clean"].str.contains("ANO")])
-                    ni = len(df_h[df_h["Hlas_Clean"].str.contains("NIE")])
+                    za = len(df_h[df_h[h_col].astype(str).str.upper().str.contains("ANO")])
+                    ni = len(df_h[df_h[h_col].astype(str).str.upper().str.contains("NIE")])
                     
                     s1, s2 = st.columns(2)
                     s1.metric("Priebežne ZA", za)
                     s2.metric("Priebežne PROTI", ni)
 
-                    # Hľadanie hlasu: skúsime v stĺpci VS alebo priamo v texte hlasu
-                    if vs_col:
-                        df_h["VS_Clean"] = df_h[vs_col].astype(str).str.strip().str.zfill(4)
-                        moj_h = df_h[df_h["VS_Clean"] == v_c]
-                    else:
-                        # Ak nie je stĺpec VS, hľadáme číslo VS v texte hlasu
-                        moj_h = df_h[df_h["Hlas_Clean"].str.contains(v_c)]
+                    moj_h = df_h[df_h.apply(lambda row: v_c in row.astype(str).values, axis=1)]
                     
                     if not moj_h.empty:
-                        posledny = moj_h.iloc[-1]["Hlas_Clean"]
-                        vysledok_vzhlad = "ÁNO 👍" if "ANO" in posledny else "NIE 👎"
-                        st.warning(f"📢 **Váš zaevidovaný hlas k tejto ankete je:** {vysledok_vzhlad}")
+                        posledny_zapis = moj_h.iloc[-1]
+                        hlas_text = str(posledny_zapis[h_col]).upper()
+                        vysledok_ikona = "ÁNO 👍" if "ANO" in hlas_text else "NIE 👎"
+                        st.warning(f"📢 **Váš zaevidovaný hlas k tejto ankete je:** {vysledok_ikona}")
                     else:
                         st.info("Zatiaľ ste v tejto ankete nehlasovali.")
                 
@@ -156,10 +152,13 @@ try:
                     b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL}?subject={urllib.parse.quote(subj_za)}&body=Hlas_ANO_{v_c}", use_container_width=True)
                     b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL}?subject={urllib.parse.quote(subj_ni)}&body=Hlas_NIE_{v_c}", use_container_width=True)
                 with tab2:
-                    st.markdown(f"Adresát: **{MAIL}** \nPredmet: `{subj_za}` **ALEBO** `{subj_ni}`")
+                    st.markdown(f"Adresát: **{MAIL}** \nPredmet pre ZA: `{subj_za}` \nPredmet pre PROTI: `{subj_ni}`")
 
         else:
             st.error("VS sa nenašiel.")
 
 except Exception as e:
     st.error(f"Chyba: {e}")
+
+st.write("---")
+st.caption("© 2026 Victory Port | Správa areálu")
