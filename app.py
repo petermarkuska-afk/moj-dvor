@@ -212,4 +212,11 @@ try:
             for _, row in df_o.iloc[::-1].iterrows():
                 with st.chat_message("user"):
                     st.write(f"**{row.get('Meno', 'Neznámy')}** ({row.get('Dátum', '')})")
-                    st.info(row.get('Odkaz', '
+                    st.info(row.get('Odkaz', 'Prázdna správa'))
+        else:
+            st.info("Zatiaľ tu nie sú žiadne verejné odkazy.")
+
+except Exception as e:
+    st.error(f"Systémová informácia: {e}")
+
+st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
