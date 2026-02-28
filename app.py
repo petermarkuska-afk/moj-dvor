@@ -222,4 +222,4 @@ try:
 except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
-st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 20
+st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
