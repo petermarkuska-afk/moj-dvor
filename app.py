@@ -85,15 +85,13 @@ try:
     st.divider()
     tabs = st.tabs(["📢 Nástenka", "📊 Financie", "💰 Moje platby", "🗳️ Anketa", "💬 Miestny pokec"])
 
-    # --- T1: NÁSTENKA + PODNET ---
+    # --- T1: NÁSTENKA ---
     with tabs[0]:
         st.subheader("📢 Aktuálne oznamy")
         if not df_n.empty: st.table(df_n.iloc[::-1])
         st.divider()
         st.subheader("🛠️ Súkromný podnet pre správcu")
-        podnet_text = st.text_area("Napíšte váš podnet (uvidí ho len správca):", key="podnet_area")
-        
-        # OPRAVA: Formátovanie podnetu
+        podnet_text = st.text_area("Napíšte váš podnet (uvidí ho len správca):", key="pod_area")
         p_subj = urllib.parse.quote(f"Podnet VP {u['vs']}")
         p_body = urllib.parse.quote(f"Od: {u['meno']} (VS: {u['vs']})\nEmail: {u['email']}\n\nPodnet:\n{podnet_text}")
         st.link_button("🚀 Odoslať podnet automaticky", f"mailto:{MAIL_SPRAVCA}?subject={p_subj}&body={p_body}", use_container_width=True)
@@ -153,17 +151,15 @@ try:
             if bilancia < 0:
                 st.markdown(f"""<div style="background-color:#fff5f5; padding:20px; border-radius:12px; border:3px solid #e53e3e; text-align:center;">
                     <h3 style="color:#c53030; margin-top:0;">⚠️ Evidujeme nedoplatok: {abs(bilancia):.2f} €</h3>
-                    <p style="color:#2d3748;">K dnešnému dňu (mesiac {t.month}) má byť uhradených spolu: <b>{ocakavane:.2f} €</b></p>
-                    <p style="color:#2d3748;">Vaša celková suma úhrad v systéme: <b>{realne:.2f} €</b></p>
+                    <p>K dnešnému dňu má byť spolu: <b>{ocakavane:.2f} €</b> | Realita: <b>{realne:.2f} €</b></p>
                 </div>""", unsafe_allow_html=True)
             else:
                 st.markdown(f"""<div style="background-color:#f0fff4; padding:20px; border-radius:12px; border:3px solid #38a169; text-align:center;">
                     <h3 style="color:#2f855a; margin-top:0;">✅ Platby sú v poriadku</h3>
-                    <p style="color:#2d3748;">Celkom uhradené <b>{realne:.2f} €</b> (pokrýva predpis <b>{ocakavane:.2f} €</b>).</p>
-                    <p style="color:#2d3748;">Máte preplatok: <b>{bilancia:.2f} €</b></p>
+                    <p>Preplatok: <b>{bilancia:.2f} €</b></p>
                 </div>""", unsafe_allow_html=True)
 
-    # --- T4: ANKETA ---
+    # --- T4: ANKETA (S HISTÓRIOU) ---
     with tabs[3]:
         st.subheader(f"🗳️ {OTAZKA}")
         v_cist = u['vs'].lstrip('0')
@@ -191,18 +187,25 @@ try:
             <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
         </div>""", unsafe_allow_html=True)
 
+        # NAVRÁTENÁ HISTÓRIA HLASOVANIA
+        st.divider()
+        st.subheader("📜 Moja história hlasovaní")
+        if not df_h.empty:
+            moje_h = df_h[df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_cist]
+            if not moje_h.empty: 
+                st.dataframe(moje_h, hide_index=True, use_container_width=True)
+            else:
+                st.info("Zatiaľ ste v systéme nehlasovali.")
+
     # --- T5: MIESTNY POKEC ---
     with tabs[4]:
         st.subheader("💬 Verejná nástenka odkazov")
         st.write("Chcete niečo odkázať susedom? Napíšte správu sem. Po schválení správcom sa zobrazí všetkým.")
         
-        nova_sprava = st.text_area("Vaša správa pre susedov:", placeholder="Napr. Susedia, v sobotu robíme guláš...", key="odkaz_area")
-        
-        # OPRAVA: Poriadne zakódovanie celého tela e-mailu vrátane dátumu
+        nova_sprava = st.text_area("Vaša správa pre susedov:", placeholder="Napr. Susedia, v sobotu robíme guláš...", key="pokec_area")
         dnes = datetime.now().strftime("%d.%m.%Y %H:%M")
         o_subj = urllib.parse.quote(f"ODKAZ NA NÁSTENKU | VS:{u['vs']}")
         o_body = urllib.parse.quote(f"Dátum: {dnes}\nMeno: {u['meno']}\nVS: {u['vs']}\n\nTEXT ODKAZU:\n{nova_sprava}")
-        
         st.link_button("✉️ Odoslať správu na zverejnenie", f"mailto:{MAIL_SPRAVCA}?subject={o_subj}&body={o_body}", use_container_width=True)
         
         st.markdown(f"""<div style="background-color:#f0fff4; padding:15px; border-radius:10px; border:2px solid #38a169; margin-top:20px;">
