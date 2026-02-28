@@ -230,4 +230,9 @@ try:
             moje_h = df_h[df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_c_clean]
             if not moje_h.empty:
                 h_cols = [c for c in [c_ot, c_hl, "Datum", "Dátum"] if c in moje_h.columns]
-                st.dataframe(moje_h[h
+                st.dataframe(moje_h[h_cols], hide_index=True, use_container_width=True)
+
+except Exception as e:
+    st.error(f"Systémová informácia: {e}")
+
+st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
