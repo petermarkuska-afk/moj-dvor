@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import urllib.parse
 import time
+from datetime import datetime
 
 # --- KONFIGURÁCIA ---
 # Názov portálu: Správa areálu Victory Port
@@ -59,10 +60,10 @@ if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
                         "email": str(user_row.iloc[0].get("Email", "Neuvedený"))
                     }
                     st.rerun()
-                else: st.error(f"VS {target_vs} nenájdený.")
+                else: st.error(f"VS {target_vs} nenájdený v adresári.")
     st.stop()
 
-# --- PORTÁL ---
+# --- PORTÁL (PO PRIHLÁSENÍ) ---
 try:
     u = st.session_state["user_data"]
     df_p = get_df("Platby")
@@ -72,8 +73,8 @@ try:
 
     st.markdown(f"<h1 style='text-align: center;'>Vitaj, {u['meno']} 👋</h1>", unsafe_allow_html=True)
     
-    col_logout1, col_logout2, col_logout3 = st.columns([1,1,1])
-    with col_logout2:
+    col_out1, col_out2, col_out3 = st.columns([1,1,1])
+    with col_out2:
         if st.button("Odhlásiť sa", use_container_width=True):
             st.session_state["auth_pass"] = False
             st.session_state["user_data"] = None
@@ -88,7 +89,7 @@ try:
         if not df_n.empty: st.table(df_n.iloc[::-1])
         st.divider()
         st.subheader("🛠️ Podnet pre správcu")
-        podnet = st.text_area("Napíšte váš podnet (popis problému):")
+        podnet = st.text_area("Napíšte váš podnet:")
         m_body = f"Od: {u['meno']} (VS: {u['vs']})\nEmail: {u['email']}\n\nSpráva:\n{podnet}"
         m_url = f"mailto:{MAIL_SPRAVCA}?subject=Podnet VP {u['vs']}&body={urllib.parse.quote(m_body)}"
         st.link_button("🚀 Odoslať podnet automaticky", m_url, use_container_width=True)
@@ -98,11 +99,11 @@ try:
             <h4 style="color:#c53030; margin-top:0;">📩 Manuálny návod (Ak tlačidlo nefunguje)</h4>
             <p style="color:#2d3748;">Pošlite e-mail ručne na: <b>{MAIL_SPRAVCA}</b></p>
             <p style="color:#2d3748;"><b>Predmet:</b> Podnet VP {u['vs']}</p>
-            <p style="color:#2d3748;"><b>Obsah:</b> V texte e-mailu uveďte podrobný popis problému.</p>
+            <p style="color:#2d3748;"><b>Text mailu:</b> Prosím, uveďte podrobný popis problému alebo vašu požiadavku.</p>
         </div>
         """, unsafe_allow_html=True)
 
-    # --- T2: FINANCIE (OPRAVENÁ TABUĽKA S LINKAMI) ---
+    # --- T2: FINANCIE ---
     with tabs[1]:
         if not df_p.empty:
             stlpce_m = [c for c in df_p.columns if "/26" in c]
@@ -127,30 +128,61 @@ try:
             doklad_col = next((c for c in df_v.columns if "DOKLAD" in c.upper()), "Doklad")
             suma_col = next((c for c in df_v.columns if "SUMA" in c.upper()), "Suma")
             zobrazit_cols = [c for c in df_v.columns if c.lower() not in ["dt", "temp_dt"]]
-            
-            st.dataframe(
-                df_v[zobrazit_cols], 
-                hide_index=True, 
-                use_container_width=True,
+            st.dataframe(df_v[zobrazit_cols], hide_index=True, use_container_width=True,
                 column_config={
                     doklad_col: st.column_config.LinkColumn("Doklad 🔗", display_text="Otvoriť"),
                     suma_col: st.column_config.NumberColumn("Suma (€)", format="%.2f")
-                }
-            )
+                })
 
-    # --- T3: MOJE PLATBY ---
+    # --- T3: MOJE PLATBY (S INTELIGENTNOU KONTROLOU) ---
     with tabs[2]:
         st.subheader(f"💰 Moje platby (VS: {u['vs']})")
         vs_p = next((c for c in df_p.columns if "VS" in c.upper()), "VS")
         df_p[vs_p] = df_p[vs_p].astype(str).str.strip().str.zfill(4)
-        st.dataframe(df_p[df_p[vs_p] == u['vs']], hide_index=True, use_container_width=True)
+        moje_platby = df_p[df_p[vs_p] == u['vs']]
 
-    # --- T4: ANKETA (S KOMPLETNOU HISTÓRIOU) ---
+        if not moje_platby.empty:
+            # Dynamická kontrola dlhu
+            teraz = datetime.now()
+            m_aktual = teraz.month
+            r_aktual = teraz.year % 100
+            
+            # Vygenerujeme zoznam mesiacov od 01/26 po aktuálny mesiac
+            mesiace_na_kontrolu = [f"{m:02d}/{r_aktual:02d}" for m in range(1, m_aktual + 1)]
+            
+            nedoplatky = []
+            row = moje_platby.iloc[0]
+            
+            for m in mesiace_na_kontrolu:
+                hodnota = pd.to_numeric(row.get(m, 0), errors='coerce')
+                if pd.isna(hodnota) or hodnota <= 0:
+                    nedoplatky.append(m)
+            
+            if nedoplatky:
+                st.markdown(f"""
+                <div style="background-color:#fff5f5; padding:20px; border-radius:12px; border:3px solid #e53e3e; margin-bottom:20px; text-align:center;">
+                    <h3 style="color:#c53030; margin-top:0;">⚠️ Evidujeme nedoplatok!</h3>
+                    <p style="color:#2d3748; font-size:1.1em;">Chýbajúce platby za mesiace: <b>{', '.join(nedoplatky)}</b></p>
+                    <p style="color:#4a5568; font-size:0.9em;">Prosíme o urýchlené vyrovnanie záväzkov do fondu opráv.</p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div style="background-color:#f0fff4; padding:20px; border-radius:12px; border:3px solid #38a169; margin-bottom:20px; text-align:center;">
+                    <h3 style="color:#2f855a; margin-top:0;">✅ Platby sú v poriadku</h3>
+                    <p style="color:#2d3748;">K dnešnému dňu neevidujeme žiadne podlžnosti.</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+            st.dataframe(moje_platby, hide_index=True, use_container_width=True)
+        else:
+            st.warning("Pre váš VS neboli nájdené žiadne záznamy o platbách.")
+
+    # --- T4: ANKETA ---
     with tabs[3]:
         st.subheader(f"🗳️ {OTAZKA}")
         v_c_clean = u['vs'].lstrip('0')
         
-        # Hľadanie stĺpcov s ošetrením diakritiky
         c_vs = next((c for c in df_h.columns if "VS" in c.upper()), "VS")
         c_ot = next((c for c in df_h.columns if "OTAZKA" in str(c).upper().replace("Á","A")), "Otázka")
         c_hl = next((c for c in df_h.columns if "HLAS" in c.upper()), "Hlas")
@@ -160,7 +192,6 @@ try:
             mask = (df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_c_clean) & (df_h[c_ot].astype(str).str.strip() == OTAZKA.strip())
             uz_hlasoval = any(mask)
 
-            # Sčítanie priebežných výsledkov pre aktuálnu otázku
             curr_data = df_h[df_h[c_ot].astype(str).str.strip() == OTAZKA.strip()]
             za = len(curr_data[curr_data[c_hl].astype(str).str.upper().str.contains("ANO|ÁNO")])
             ni = len(curr_data[curr_data[c_hl].astype(str).str.upper().str.contains("NIE")])
@@ -170,36 +201,32 @@ try:
 
         st.divider()
         if uz_hlasoval:
-            st.success("✅ **Váš hlas k tejto otázke bol už prijatý. Ďakujeme!**")
+            st.success("✅ **Váš hlas k tejto téme bol už prijatý.**")
         else:
-            st.write("### Odovzdajte svoj hlas:")
+            st.write("### Hlasovať automaticky:")
             b1, b2 = st.columns(2)
             s_za = f"HLAS:ANO | VS:{u['vs']} | {OTAZKA}"
             s_ni = f"HLAS:NIE | VS:{u['vs']} | {OTAZKA}"
-            b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_za)}&body=Meno: {u['meno']}", use_container_width=True)
-            b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_ni)}&body=Meno: {u['meno']}", use_container_width=True)
+            b1.link_button("👍 ZA", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_za)}&body=Meno: {u['meno']}", use_container_width=True)
+            b2.link_button("👎 PROTI", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_ni)}&body=Meno: {u['meno']}", use_container_width=True)
 
         st.markdown(f"""
         <div style="background-color:#f0fff4; padding:15px; border-radius:10px; border:2px solid #38a169; margin-top:20px;">
-            <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne hlasovanie (Ak tlačidlá nereagujú)</h4>
-            <p style="color:#2d3748;">Pošlite e-mail na: <b>{MAIL_SPRAVCA}</b></p>
-            <p style="color:#2d3748; margin-bottom:2px;"><b>Predmet ZA:</b> HLAS:ANO | VS:{u['vs']} | {OTAZKA}</p>
-            <p style="color:#2d3748; margin-bottom:2px;"><b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
+            <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne hlasovanie</h4>
+            <p style="color:#2d3748;"><b>Predmet ZA:</b> HLAS:ANO | VS:{u['vs']} | {OTAZKA}</p>
+            <p style="color:#2d3748;"><b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
         </div>
         """, unsafe_allow_html=True)
 
         st.divider()
         st.subheader("📜 Moja história hlasovaní")
         if not df_h.empty:
-            moje_hlasy = df_h[df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_c_clean]
-            if not moje_hlasy.empty:
-                # Dynamické stĺpce pre históriu (Otázka, Hlas, Dátum)
-                hist_cols = [c for c in [c_ot, c_hl, "Datum", "Dátum"] if c in moje_hlasy.columns]
-                st.dataframe(moje_hlasy[hist_cols], hide_index=True, use_container_width=True)
-            else:
-                st.info("Zatiaľ ste sa nezúčastnili žiadneho hlasovania.")
+            moje_h = df_h[df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_c_clean]
+            if not moje_h.empty:
+                h_cols = [c for c in [c_ot, c_hl, "Datum", "Dátum"] if c in moje_h.columns]
+                st.dataframe(moje_h[h_cols], hide_index=True, use_container_width=True)
 
 except Exception as e:
-    st.error(f"Vyskytla sa chyba: {e}")
+    st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
