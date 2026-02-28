@@ -10,7 +10,8 @@ SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
 OTAZKA = "Postaviť heliport?"
 HLAVNE_HESLO = "Victory2026" 
 
-st.set_page_config(page_title="Správa areálu Victory Port", layout="wide", page_icon="🏡")
+# FIXNÁ ŠÍRKA STRÁNKY (layout="centered")
+st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
 
 # --- FUNKCIA NA NAČÍTANIE DÁT ---
 def get_df(sheet):
@@ -69,13 +70,12 @@ try:
     df_h = get_df("Hlasovanie")
     df_n = get_df("Nastenka")
 
-    # NOVÉ ZOBRAZENIE HORE (Miesto sidebaru a starého nadpisu)
-    c_top1, c_top2 = st.columns([0.8, 0.2])
-    with c_top1:
-        st.title(f"Vitaj, {u['meno']} 👋")
-        st.caption(f"Prihlásený pod VS: {u['vs']} | {u['email']}")
-    with c_top2:
-        st.write("") # Zarovnanie
+    # HLAVIČKA (Centrovaná pod sebou)
+    st.markdown(f"<h1 style='text-align: center;'>Vitaj, {u['meno']} 👋</h1>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align: center; color: gray;'>VS: {u['vs']} | {u['email']}</p>", unsafe_allow_html=True)
+    
+    col_out1, col_out2, col_out3 = st.columns([1,1,1])
+    with col_out2: # Tlačidlo odhlásiť v strede
         if st.button("Odhlásiť sa", use_container_width=True):
             st.session_state["auth_pass"] = False
             st.session_state["user_data"] = None
@@ -108,7 +108,7 @@ try:
             c1, c2, c3 = st.columns(3)
             c1.metric("Fond celkom", f"{p_sum:.2f} €")
             c2.metric("Výdavky celkom", f"{v_sum:.2f} €")
-            c3.metric("Aktuálny zostatok", f"{(p_sum - v_sum):.2f} €")
+            c3.metric("Zostatok", f"{(p_sum - v_sum):.2f} €")
 
             if not df_v.empty and "Dátum" in df_v.columns:
                 df_v["temp_dt"] = pd.to_datetime(df_v["Dátum"], dayfirst=True, errors='coerce')
@@ -169,4 +169,4 @@ try:
 except Exception as e:
     st.error(f"Chyba: {e}")
 
-st.caption("© 2026 Správa areálu Victory Port")
+st.markdown("<p style='text-align: center; font-size: 0.8em;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
