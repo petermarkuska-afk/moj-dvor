@@ -91,10 +91,12 @@ try:
         if not df_n.empty: st.table(df_n.iloc[::-1])
         st.divider()
         st.subheader("🛠️ Súkromný podnet pre správcu")
-        podnet_text = st.text_area("Napíšte váš podnet (uvidí ho len správca):")
-        m_body = f"Od: {u['meno']} (VS: {u['vs']})\nEmail: {u['email']}\n\nPopis problému:\n{podnet_text}"
-        m_url = f"mailto:{MAIL_SPRAVCA}?subject=Podnet VP {u['vs']}&body={urllib.parse.quote(m_body)}"
-        st.link_button("🚀 Odoslať podnet automaticky", m_url, use_container_width=True)
+        podnet_text = st.text_area("Napíšte váš podnet (uvidí ho len správca):", key="podnet_area")
+        
+        # OPRAVA: Formátovanie podnetu
+        p_subj = urllib.parse.quote(f"Podnet VP {u['vs']}")
+        p_body = urllib.parse.quote(f"Od: {u['meno']} (VS: {u['vs']})\nEmail: {u['email']}\n\nPodnet:\n{podnet_text}")
+        st.link_button("🚀 Odoslať podnet automaticky", f"mailto:{MAIL_SPRAVCA}?subject={p_subj}&body={p_body}", use_container_width=True)
         
         st.markdown(f"""
         <div style="background-color:#fff5f5; padding:15px; border-radius:10px; border:2px solid #e53e3e; margin-top:15px;">
@@ -176,11 +178,11 @@ try:
         if uz_hlasoval:
             st.success("✅ Váš hlas k tejto téme bol už prijatý.")
         else:
-            s_za = f"HLAS:ANO | VS:{u['vs']} | {OTAZKA}"
-            s_ni = f"HLAS:NIE | VS:{u['vs']} | {OTAZKA}"
+            s_za = urllib.parse.quote(f"HLAS:ANO | VS:{u['vs']} | {OTAZKA}")
+            s_ni = urllib.parse.quote(f"HLAS:NIE | VS:{u['vs']} | {OTAZKA}")
             b1, b2 = st.columns(2)
-            b1.link_button("👍 ZA", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_za)}", use_container_width=True)
-            b2.link_button("👎 PROTI", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_ni)}", use_container_width=True)
+            b1.link_button("👍 ZA", f"mailto:{MAIL_SPRAVCA}?subject={s_za}", use_container_width=True)
+            b2.link_button("👎 PROTI", f"mailto:{MAIL_SPRAVCA}?subject={s_ni}", use_container_width=True)
 
         st.markdown(f"""<div style="background-color:#f0fff4; padding:15px; border-radius:10px; border:2px solid #38a169; margin-top:20px;">
             <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne hlasovanie</h4>
@@ -189,25 +191,20 @@ try:
             <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
         </div>""", unsafe_allow_html=True)
 
-        st.divider()
-        st.subheader("📜 Moja história hlasovaní")
-        if not df_h.empty:
-            moje_h = df_h[df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_cist]
-            if not moje_h.empty: st.dataframe(moje_h, hide_index=True, use_container_width=True)
-
     # --- T5: MIESTNY POKEC ---
     with tabs[4]:
         st.subheader("💬 Verejná nástenka odkazov")
         st.write("Chcete niečo odkázať susedom? Napíšte správu sem. Po schválení správcom sa zobrazí všetkým.")
         
-        nova_sprava = st.text_area("Vaša správa pre susedov:", placeholder="Napr. Susedia, v sobotu robíme guláš...")
-        s_subj = f"ODKAZ NA NÁSTENKU | VS:{u['vs']}"
-        s_body = f"Meno: {u['meno']}\nVS: {u['vs']}\n\nText odkazu pre susedov:\n{nova_sprava}"
-        s_url = f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_subj)}&body={urllib.parse.quote(s_body)}"
+        nova_sprava = st.text_area("Vaša správa pre susedov:", placeholder="Napr. Susedia, v sobotu robíme guláš...", key="odkaz_area")
         
-        st.link_button("✉️ Odoslať správu na zverejnenie", s_url, use_container_width=True)
+        # OPRAVA: Poriadne zakódovanie celého tela e-mailu vrátane dátumu
+        dnes = datetime.now().strftime("%d.%m.%Y %H:%M")
+        o_subj = urllib.parse.quote(f"ODKAZ NA NÁSTENKU | VS:{u['vs']}")
+        o_body = urllib.parse.quote(f"Dátum: {dnes}\nMeno: {u['meno']}\nVS: {u['vs']}\n\nTEXT ODKAZU:\n{nova_sprava}")
         
-        # Manuálny návod pre odkazy v rovnakom štýle ako v iných sekciách
+        st.link_button("✉️ Odoslať správu na zverejnenie", f"mailto:{MAIL_SPRAVCA}?subject={o_subj}&body={o_body}", use_container_width=True)
+        
         st.markdown(f"""<div style="background-color:#f0fff4; padding:15px; border-radius:10px; border:2px solid #38a169; margin-top:20px;">
             <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne odoslanie odkazu</h4>
             <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
