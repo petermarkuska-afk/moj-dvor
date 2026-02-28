@@ -10,7 +10,7 @@ from datetime import datetime
 # ==========================================
 MAIL_SPRAVCA = "petermarkuska@gmail.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
-OTAZKA = "Súhlasíte s jednorazovým vkladom do fondu areálu?" 
+OTAZKA = "Súhlasíte s výstavbou nového detského ihriska?" 
 HLAVNE_HESLO = "Victory2026" 
 MESACNY_PREDPIS = 10.0 
 
@@ -72,6 +72,7 @@ try:
     df_v = get_df("Vydavky")
     df_h = get_df("Hlasovanie")
     df_n = get_df("Nastenka")
+    df_o = get_df("Odkazy") # Nový zošit pre odkazy
 
     st.markdown(f"<h1 style='text-align: center;'>Vitaj, {u['meno']} 👋</h1>", unsafe_allow_html=True)
     
@@ -82,27 +83,18 @@ try:
             st.rerun()
 
     st.divider()
-    tabs = st.tabs(["📢 Nástenka", "📊 Financie", "💰 Moje platby", "🗳️ Anketa"])
+    tabs = st.tabs(["📢 Nástenka", "📊 Financie", "💰 Moje platby", "🗳️ Anketa", "💬 Miestny pokec"])
 
-    # --- T1: NÁSTENKA + PODNET ---
+    # --- T1: NÁSTENKA ---
     with tabs[0]:
         st.subheader("📢 Aktuálne oznamy")
         if not df_n.empty: st.table(df_n.iloc[::-1])
         st.divider()
-        st.subheader("🛠️ Podnet pre správcu")
-        podnet_text = st.text_area("Napíšte váš podnet:")
-        m_body = f"Od: {u['meno']} (VS: {u['vs']})\nEmail: {u['email']}\n\nPopis problému:\n{podnet_text}"
+        st.subheader("🛠️ Súkromný podnet pre správcu")
+        podnet_text = st.text_area("Napíšte váš podnet (uvidí ho len správca):")
+        m_body = f"Od: {u['meno']} (VS: {u['vs']})\n\nPopis problému:\n{podnet_text}"
         m_url = f"mailto:{MAIL_SPRAVCA}?subject=Podnet VP {u['vs']}&body={urllib.parse.quote(m_body)}"
-        st.link_button("🚀 Odoslať podnet automaticky", m_url, use_container_width=True)
-        
-        st.markdown(f"""
-        <div style="background-color:#fff5f5; padding:15px; border-radius:10px; border:2px solid #e53e3e; margin-top:15px;">
-            <h4 style="color:#c53030; margin-top:0;">📩 Manuálny návod</h4>
-            <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
-            Predmet: <b>Podnet VP {u['vs']}</b><br>
-            Obsah: <b>Do textu e-mailu, prosím, podrobne popíšte váš problém.</b></p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.link_button("🚀 Odoslať podnet správcovi", m_url, use_container_width=True)
 
     # --- T2: FINANCIE ---
     with tabs[1]:
@@ -148,21 +140,15 @@ try:
 
             st.divider()
             if bilancia < 0:
-                st.markdown(f"""
-                <div style="background-color:#fff5f5; padding:20px; border-radius:12px; border:3px solid #e53e3e; text-align:center;">
+                st.markdown(f"""<div style="background-color:#fff5f5; padding:20px; border-radius:12px; border:3px solid #e53e3e; text-align:center;">
                     <h3 style="color:#c53030; margin-top:0;">⚠️ Evidujeme nedoplatok: {abs(bilancia):.2f} €</h3>
-                    <p style="color:#2d3748;">K dnešnému dňu (mesiac {t.month}) má byť uhradených spolu: <b>{ocakavane:.2f} €</b></p>
-                    <p style="color:#2d3748;">Vaša celková suma úhrad v systéme: <b>{realne:.2f} €</b></p>
-                </div>
-                """, unsafe_allow_html=True)
+                    <p>Malo byť: <b>{ocakavane:.2f} €</b> | Realita: <b>{realne:.2f} €</b></p>
+                </div>""", unsafe_allow_html=True)
             else:
-                st.markdown(f"""
-                <div style="background-color:#f0fff4; padding:20px; border-radius:12px; border:3px solid #38a169; text-align:center;">
+                st.markdown(f"""<div style="background-color:#f0fff4; padding:20px; border-radius:12px; border:3px solid #38a169; text-align:center;">
                     <h3 style="color:#2f855a; margin-top:0;">✅ Platby sú v poriadku</h3>
-                    <p style="color:#2d3748;">Celkom uhradené <b>{realne:.2f} €</b> (pokrýva predpis <b>{ocakavane:.2f} €</b>).</p>
-                    <p style="color:#2d3748;">Máte preplatok: <b>{bilancia:.2f} €</b></p>
-                </div>
-                """, unsafe_allow_html=True)
+                    <p>Máte preplatok: <b>{bilancia:.2f} €</b></p>
+                </div>""", unsafe_allow_html=True)
 
     # --- T4: ANKETA ---
     with tabs[3]:
@@ -177,7 +163,7 @@ try:
             uz_hlasoval = any(mask)
 
         if uz_hlasoval:
-            st.success("✅ Váš hlas k tejto téme bol už prijatý.")
+            st.success("✅ Váš hlas bol prijatý.")
         else:
             s_za = f"HLAS:ANO | VS:{u['vs']} | {OTAZKA}"
             s_ni = f"HLAS:NIE | VS:{u['vs']} | {OTAZKA}"
@@ -185,23 +171,30 @@ try:
             b1.link_button("👍 ZA", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_za)}", use_container_width=True)
             b2.link_button("👎 PROTI", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_ni)}", use_container_width=True)
 
-        st.markdown(f"""
-        <div style="background-color:#f0fff4; padding:15px; border-radius:10px; border:2px solid #38a169; margin-top:20px;">
-            <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne hlasovanie</h4>
-            <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
-            <b>Predmet ZA:</b> HLAS:ANO | VS:{u['vs']} | {OTAZKA}<br>
-            <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
-        </div>
-        """, unsafe_allow_html=True)
-
+    # --- T5: MIESTNY POKEC (NOVÉ!) ---
+    with tabs[4]:
+        st.subheader("💬 Verejná nástenka odkazov")
+        st.write("Chcete niečo odkázať susedom? Napíšte správu sem. Po schválení správcom sa zobrazí všetkým.")
+        
+        nova_sprava = st.text_area("Vaša správa pre všetkých:", placeholder="Napr.: Susedia, v sobotu robíme guláš, všetci ste vítaní!")
+        s_subj = f"ODKAZ NA NÁSTENKU | VS:{u['vs']}"
+        s_body = f"Meno: {u['meno']}\nVS: {u['vs']}\n\nText odkazu:\n{nova_sprava}"
+        s_url = f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_subj)}&body={urllib.parse.quote(s_body)}"
+        
+        st.link_button("✉️ Odoslať správu na zverejnenie", s_url, use_container_width=True)
+        
         st.divider()
-        st.subheader("📜 Moja história hlasovaní")
-        if not df_h.empty:
-            moje_h = df_h[df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_cist]
-            if not moje_h.empty: st.dataframe(moje_h, hide_index=True, use_container_width=True)
+        st.subheader("📌 Posledné odkazy")
+        if not df_o.empty:
+            # Zobrazíme správy v pekných boxoch od najnovšej
+            for _, row in df_o.iloc[::-1].iterrows():
+                with st.chat_message("user"):
+                    st.write(f"**{row.get('Meno', 'Neznámy')}** ({row.get('Dátum', '')})")
+                    st.info(row.get('Odkaz', 'Prázdna správa'))
+        else:
+            st.info("Zatiaľ tu nie sú žiadne verejné odkazy.")
 
 except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
-
