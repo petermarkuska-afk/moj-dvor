@@ -89,25 +89,19 @@ try:
         st.divider()
         st.subheader("🛠️ Podnet pre správcu")
         podnet = st.text_area("Napíšte váš podnet:")
-        
         m_body = f"Od: {u['meno']} (VS: {u['vs']})\nEmail: {u['email']}\n\nSpráva:\n{podnet}"
         m_url = f"mailto:{MAIL_SPRAVCA}?subject=Podnet VP {u['vs']}&body={urllib.parse.quote(m_body)}"
         st.link_button("🚀 Odoslať podnet automaticky", m_url, use_container_width=True)
         
-        # MANUÁLNY OZNAM PRE PODNET
         st.markdown(f"""
-        <div style="background-color:#f0f2f6; padding:15px; border-radius:10px; border:2px solid #ff4b4b; margin-top:15px;">
-            <h4 style="color:#ff4b4b; margin-top:0;">📩 Nepodarilo sa odoslať? (Manuálny návod)</h4>
-            <p style="color:#31333F;">Ak sa vám neotvoril e-mailový klient, pošlite správu ručne:</p>
-            <ul style="color:#31333F;">
-                <li><b>Príjemca:</b> {MAIL_SPRAVCA}</li>
-                <li><b>Predmet:</b> Podnet VP {u['vs']}</li>
-                <li><b>Obsah:</b> Uveďte vaše meno a popis podnetu.</li>
-            </ul>
+        <div style="background-color:#fef2f2; padding:15px; border-radius:10px; border:2px solid #ef4444; margin-top:15px;">
+            <h4 style="color:#b91c1c; margin-top:0;">📩 Manuálny návod (Ak tlačidlo nefunguje)</h4>
+            <p style="color:#1f2937; margin-bottom:5px;">Pošlite e-mail ručne na: <b>{MAIL_SPRAVCA}</b></p>
+            <p style="color:#1f2937; margin-bottom:5px;"><b>Predmet:</b> Podnet VP {u['vs']}</p>
         </div>
         """, unsafe_allow_html=True)
 
-    # --- T2 & T3: FINANCIE A PLATBY (Pôvodné funkčné verzie) ---
+    # --- T2: FINANCIE ---
     with tabs[1]:
         if not df_p.empty:
             stlpce_m = [c for c in df_p.columns if "/26" in c]
@@ -127,6 +121,18 @@ try:
                 fig.update_traces(line_color='#28a745', fillcolor='rgba(40, 167, 69, 0.3)')
                 st.plotly_chart(fig, use_container_width=True)
 
+        st.subheader("📜 Zoznam výdavkov")
+        if not df_v.empty:
+            zobrazit = [c for c in df_v.columns if c.lower() not in ["dt", "temp_dt"]]
+            st.dataframe(df_v[zobrazit], hide_index=True, use_container_width=True,
+                column_config={
+                    "Doklad": st.column_config.LinkColumn("Doklad", display_text="Zobraziť 🔗"),
+                    "Suma": st.column_config.NumberColumn("Suma (€)", format="%.2f")
+                })
+        else:
+            st.info("Zatiaľ neboli zaevidované žiadne výdavky.")
+
+    # --- T3: MOJE PLATBY ---
     with tabs[2]:
         st.subheader(f"💰 Moje platby (VS: {u['vs']})")
         vs_p = next((c for c in df_p.columns if "VS" in c.upper()), None)
@@ -135,51 +141,41 @@ try:
             moje = df_p[df_p[vs_p] == u['vs']]
             st.dataframe(moje, hide_index=True, use_container_width=True)
 
-    # --- T4: ANKETA (S OVERENÍM A MANUÁLOM) ---
+    # --- T4: ANKETA ---
     with tabs[3]:
         st.subheader(f"🗳️ {OTAZKA}")
-        
-        # Kontrola, či už VS v tabuľke Hlasovanie je
         v_c_clean = u['vs'].lstrip('0')
         uz_hlasoval = False
         if not df_h.empty:
             vs_col_h = next((c for c in df_h.columns if "VS" in c.upper()), df_h.columns[0])
-            # Skontrolujeme, či sa VS nachádza v tabuľke
             if any(df_h[vs_col_h].astype(str).str.strip().str.lstrip('0') == v_c_clean):
                 uz_hlasoval = True
 
-        # Priebežné výsledky
         if not df_h.empty:
             h_col = next((c for c in df_h.columns if "HLAS" in c.upper() or "ODPOVEĎ" in c.upper()), df_h.columns[-1])
             za = len(df_h[df_h[h_col].astype(str).str.upper().str.contains("ANO|ÁNO")])
             ni = len(df_h[df_h[h_col].astype(str).str.upper().str.contains("NIE")])
             c1, c2 = st.columns(2)
-            c1.metric("HLASY ZA", f"{za}")
-            c2.metric("HLASY PROTI", f"{ni}")
+            c1.metric("CELKOM ZA", f"{za}")
+            c2.metric("CELKOM PROTI", f"{ni}")
 
         st.divider()
-
         if uz_hlasoval:
-            st.success("✅ **Váš hlas už bol zaevidovaný. Ďakujeme za účasť v hlasovaní!**")
+            st.success("✅ **Váš hlas už bol úspešne prijatý. Ďakujeme!**")
         else:
-            st.write("### Odovzdajte svoj hlas:")
+            st.write("### Vyjadrite svoj názor:")
             b1, b2 = st.columns(2)
             s_za = f"HLAS_ANO_{u['vs']}: {OTAZKA}"
             s_ni = f"HLAS_NIE_{u['vs']}: {OTAZKA}"
-            
-            b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_za)}&body=Meno: {u['meno']}", use_container_width=True)
-            b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_ni)}&body=Meno: {u['meno']}", use_container_width=True)
+            b1.link_button("👍 ZA", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_za)}&body=Meno: {u['meno']}", use_container_width=True)
+            b2.link_button("👎 PROTI", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_ni)}&body=Meno: {u['meno']}", use_container_width=True)
 
-        # MANUÁLNY OZNAM PRE ANKETU
         st.markdown(f"""
-        <div style="background-color:#e8f4ea; padding:15px; border-radius:10px; border:2px solid #28a745; margin-top:20px;">
-            <h4 style="color:#28a745; margin-top:0;">📝 Manuálne hlasovanie (Ak tlačidlá nereagujú)</h4>
-            <p style="color:#31333F;">Ak sa vám nedarí hlasovať kliknutím, pošlite e-mail na <b>{MAIL_SPRAVCA}</b> s týmito údajmi:</p>
-            <table style="width:100%; border-collapse: collapse; color:#31333F;">
-                <tr style="border-bottom: 1px solid #ccc;"><td><b>Predmet ZA:</b></td><td>HLAS_ANO_{u['vs']}</td></tr>
-                <tr><td><b>Predmet PROTI:</b></td><td>HLAS_NIE_{u['vs']}</td></tr>
-            </table>
-            <p style="margin-top:10px; font-size:0.9em; color:#555;"><i>* Do obsahu e-mailu stačí napísať vaše meno.</i></p>
+        <div style="background-color:#f0fdf4; padding:15px; border-radius:10px; border:2px solid #16a34a; margin-top:20px;">
+            <h4 style="color:#15803d; margin-top:0;">📝 Manuálne hlasovanie</h4>
+            <p style="color:#1f2937; margin-bottom:5px;">Ak tlačidlá nereagujú, pošlite mail na: <b>{MAIL_SPRAVCA}</b></p>
+            <p style="color:#1f2937; margin-bottom:2px;"><b>Predmet ZA:</b> HLAS_ANO_{u['vs']}</p>
+            <p style="color:#1f2937; margin-bottom:2px;"><b>Predmet PROTI:</b> HLAS_NIE_{u['vs']}</p>
         </div>
         """, unsafe_allow_html=True)
 
