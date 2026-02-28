@@ -10,7 +10,6 @@ SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
 OTAZKA = "Postaviť heliport?"
 HLAVNE_HESLO = "Victory2026" 
 
-# FIXNÁ ŠÍRKA STRÁNKY (layout="centered")
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
 
 # --- FUNKCIA NA NAČÍTANIE DÁT ---
@@ -70,12 +69,11 @@ try:
     df_h = get_df("Hlasovanie")
     df_n = get_df("Nastenka")
 
-    # HLAVIČKA (Centrovaná pod sebou)
     st.markdown(f"<h1 style='text-align: center;'>Vitaj, {u['meno']} 👋</h1>", unsafe_allow_html=True)
     st.markdown(f"<p style='text-align: center; color: gray;'>VS: {u['vs']} | {u['email']}</p>", unsafe_allow_html=True)
     
-    col_out1, col_out2, col_out3 = st.columns([1,1,1])
-    with col_out2: # Tlačidlo odhlásiť v strede
+    c_out1, c_out2, c_out3 = st.columns([1,1,1])
+    with c_out2:
         if st.button("Odhlásiť sa", use_container_width=True):
             st.session_state["auth_pass"] = False
             st.session_state["user_data"] = None
@@ -123,15 +121,9 @@ try:
         st.subheader("📜 Zoznam výdavkov")
         if not df_v.empty:
             zobrazit = [c for c in df_v.columns if c.lower() not in ["dt", "temp_dt"]]
-            st.dataframe(
-                df_v[zobrazit], 
-                hide_index=True, 
-                use_container_width=True,
-                column_config={
-                    "Doklad": st.column_config.LinkColumn("Doklad", display_text="Otvoriť link 🔗"),
-                    "Suma": st.column_config.NumberColumn("Suma (€)", format="%.2f")
-                }
-            )
+            st.dataframe(df_v[zobrazit], hide_index=True, use_container_width=True,
+                column_config={"Doklad": st.column_config.LinkColumn("Doklad", display_text="Otvoriť link 🔗"),
+                               "Suma": st.column_config.NumberColumn("Suma (€)", format="%.2f")})
 
     # --- T3: MOJE PLATBY ---
     with tabs[2]:
@@ -142,10 +134,12 @@ try:
             moje = df_p[df_p[vs_p] == u['vs']]
             st.dataframe(moje, hide_index=True, use_container_width=True)
 
-    # --- T4: ANKETA ---
+    # --- T4: ANKETA (S KONTROLOU HLASOVANIA) ---
     with tabs[3]:
         if OTAZKA.upper() != "ŽIADNA ANKETA":
             st.subheader(f"🗳️ {OTAZKA}")
+            
+            # 1. Zobrazenie priebežných výsledkov
             if not df_h.empty:
                 h_col = next((c for c in df_h.columns if "HLAS" in c.upper() or "ODPOVEĎ" in c.upper()), df_h.columns[-1])
                 za = len(df_h[df_h[h_col].astype(str).str.upper().str.contains("ANO|ÁNO")])
@@ -153,9 +147,16 @@ try:
                 c1, c2 = st.columns(2)
                 c1.metric("AKTUÁLNE ZA", f"{za} hlasov")
                 c2.metric("AKTUÁLNE PROTI", f"{ni} hlasov")
-            
+
+                # 2. Kontrola, či už prihlásený užívateľ hlasoval
+                v_c_clean = u['vs'].lstrip('0') # Odstránenie núl na začiatku pre istotu (napr. 0101 -> 101)
+                user_voted = df_h[df_h.apply(lambda row: any(str(x).strip().lstrip('0') == v_c_clean for x in row), axis=1)]
+                
+                if not user_voted.empty:
+                    st.success(f"✅ **Váš hlas bol zaevidovaný.** (Voľba: {'ÁNO 👍' if 'ANO' in str(user_voted.iloc[-1][h_col]).upper() else 'NIE 👎'})")
+
             st.divider()
-            st.write("### Odoslať váš hlas:")
+            st.write("### Odoslať alebo zmeniť váš hlas:")
             b1, b2 = st.columns(2)
             s_za = f"HLAS_ANO_{u['vs']}: {OTAZKA}"
             s_ni = f"HLAS_NIE_{u['vs']}: {OTAZKA}"
