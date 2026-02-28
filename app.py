@@ -5,7 +5,6 @@ import urllib.parse
 import time
 
 # --- KONFIGURÁCIA ---
-# Názov portálu: Správa areálu Victory Port
 MAIL_SPRAVCA = "petermarkuska@gmail.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
 OTAZKA = "Súhlasíte s výstavbou nového detského ihriska?" 
@@ -30,7 +29,6 @@ if "auth_pass" not in st.session_state:
 if "user_data" not in st.session_state:
     st.session_state["user_data"] = None
 
-# 1. KROK: HLAVNÉ HESLO
 if not st.session_state["auth_pass"]:
     st.markdown("<h2 style='text-align: center;'>🔐 Vstup do portálu</h2>", unsafe_allow_html=True)
     heslo_vstup = st.text_input("Zadajte prístupové heslo:", type="password")
@@ -42,7 +40,6 @@ if not st.session_state["auth_pass"]:
             st.error("Nesprávne heslo!")
     st.stop()
 
-# 2. KROK: IDENTIFIKÁCIA PODĽA VS
 if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
     st.markdown("<h2 style='text-align: center;'>🔑 Identifikácia majiteľa</h2>", unsafe_allow_html=True)
     vs_vstup = st.text_input("Zadajte váš Variabilný symbol (VS):", placeholder="Napr. 1007")
@@ -61,10 +58,10 @@ if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
                         "email": str(user_row.iloc[0].get("Email", "Neuvedený"))
                     }
                     st.rerun()
-                else: st.error(f"VS {target_vs} nenájdený v adresári.")
+                else: st.error(f"VS {target_vs} nenájdený.")
     st.stop()
 
-# --- PORTÁL (PO PRIHLÁSENÍ) ---
+# --- PORTÁL ---
 try:
     u = st.session_state["user_data"]
     df_p = get_df("Platby")
@@ -97,10 +94,11 @@ try:
         st.link_button("🚀 Odoslať podnet automaticky", m_url, use_container_width=True)
         
         st.markdown(f"""
-        <div style="background-color:#fef2f2; padding:15px; border-radius:10px; border:2px solid #ef4444; margin-top:15px; color:#1f2937;">
-            <h4 style="color:#b91c1c; margin-top:0;">📩 Manuálny návod (Ak tlačidlo nefunguje)</h4>
-            <p>Pošlite e-mail ručne na: <b>{MAIL_SPRAVCA}</b></p>
-            <p><b>Predmet:</b> Podnet VP {u['vs']}</p>
+        <div style="background-color:#fff5f5; padding:15px; border-radius:10px; border:2px solid #e53e3e; margin-top:15px;">
+            <h4 style="color:#c53030; margin-top:0;">📩 Manuálny návod (Ak tlačidlo nefunguje)</h4>
+            <p style="color:#2d3748;">Pošlite e-mail ručne na: <b>{MAIL_SPRAVCA}</b></p>
+            <p style="color:#2d3748;"><b>Predmet:</b> Podnet VP {u['vs']}</p>
+            <p style="color:#2d3748;"><b>Text mailu:</b> Prosím, uveďte podrobný popis problému alebo vašu požiadavku.</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -127,11 +125,7 @@ try:
         st.subheader("📜 Zoznam výdavkov")
         if not df_v.empty:
             zobrazit = [c for c in df_v.columns if c.lower() not in ["dt", "temp_dt"]]
-            st.dataframe(df_v[zobrazit], hide_index=True, use_container_width=True,
-                column_config={
-                    "Doklad": st.column_config.LinkColumn("Doklad", display_text="Otvoriť link 🔗"),
-                    "Suma": st.column_config.NumberColumn("Suma (€)", format="%.2f")
-                })
+            st.dataframe(df_v[zobrazit], hide_index=True, use_container_width=True)
 
     # --- T3: MOJE PLATBY ---
     with tabs[2]:
@@ -142,47 +136,68 @@ try:
             moje = df_p[df_p[vs_p] == u['vs']]
             st.dataframe(moje, hide_index=True, use_container_width=True)
 
-    # --- T4: ANKETA ---
+    # --- T4: ANKETA (HISTÓRIA A ZÁPIS) ---
     with tabs[3]:
         st.subheader(f"🗳️ {OTAZKA}")
         v_c_clean = u['vs'].lstrip('0')
         uz_hlasoval = False
         
-        # Overenie, či už VS hlasoval
+        # Kontrola hlasovania pre aktuálnu otázku
         if not df_h.empty:
-            vs_col_h = next((c for c in df_h.columns if "VS" in c.upper()), df_h.columns[0])
-            if any(df_h[vs_col_h].astype(str).str.strip().str.lstrip('0') == v_c_clean):
-                uz_hlasoval = True
+            # Ošetrenie názvov stĺpcov podľa tvojho zadania
+            # Hľadáme VS, Otázka, Hlas
+            c_vs = "VS" if "VS" in df_h.columns else df_h.columns[0]
+            c_ot = "Otázka" if "Otázka" in df_h.columns else ("Otazka" if "Otazka" in df_h.columns else None)
+            c_hl = "Hlas" if "Hlas" in df_h.columns else df_h.columns[-1]
 
-        if not df_h.empty:
-            h_col = next((c for c in df_h.columns if "HLAS" in c.upper() or "ODPOVEĎ" in c.upper()), df_h.columns[-1])
-            za = len(df_h[df_h[h_col].astype(str).str.upper().str.contains("ANO|ÁNO")])
-            ni = len(df_h[df_h[h_col].astype(str).str.upper().str.contains("NIE")])
+            if c_ot:
+                mask = (df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_c_clean) & \
+                       (df_h[c_ot].astype(str).str.strip() == OTAZKA.strip())
+                if any(mask):
+                    uz_hlasoval = True
+
+            # Výsledky aktuálnej ankety
+            curr_data = df_h[df_h[c_ot].astype(str).str.strip() == OTAZKA.strip()] if c_ot else df_h
+            za = len(curr_data[curr_data[c_hl].astype(str).str.upper().str.contains("ANO|ÁNO")])
+            ni = len(curr_data[curr_data[c_hl].astype(str).str.upper().str.contains("NIE")])
             c1, c2 = st.columns(2)
-            c1.metric("CELKOM ZA", f"{za}")
-            c2.metric("CELKOM PROTI", f"{ni}")
+            c1.metric("ZA", f"{za} hlasov")
+            c2.metric("PROTI", f"{ni} hlasov")
 
         st.divider()
         if uz_hlasoval:
-            st.success("✅ **Váš hlas už bol prijatý. Ďakujeme za účasť v hlasovaní!**")
+            st.success("✅ **Váš hlas k tejto téme bol už prijatý.**")
         else:
-            st.write("### Odovzdajte svoj hlas:")
+            st.write("### Hlasovať automaticky:")
             b1, b2 = st.columns(2)
-            s_za = f"HLAS_ANO_{u['vs']}: {OTAZKA}"
-            s_ni = f"HLAS_NIE_{u['vs']}: {OTAZKA}"
-            b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_za)}&body=Meno: {u['meno']}", use_container_width=True)
-            b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_ni)}&body=Meno: {u['meno']}", use_container_width=True)
+            # Formát pre Make.com: HLAS:ODPOVED | VS:CISLO | TEXT_OTAZKY
+            s_za = f"HLAS:ANO | VS:{u['vs']} | {OTAZKA}"
+            s_ni = f"HLAS:NIE | VS:{u['vs']} | {OTAZKA}"
+            b1.link_button("👍 ZA", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_za)}&body=Meno: {u['meno']}", use_container_width=True)
+            b2.link_button("👎 PROTI", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_ni)}&body=Meno: {u['meno']}", use_container_width=True)
 
+        # MANUÁLNY NÁVOD ANKETA
         st.markdown(f"""
-        <div style="background-color:#f0fdf4; padding:15px; border-radius:10px; border:2px solid #16a34a; margin-top:20px; color:#1f2937;">
-            <h4 style="color:#15803d; margin-top:0;">📝 Manuálne hlasovanie (Ak tlačidlá nereagujú)</h4>
-            <p>Pošlite e-mail na: <b>{MAIL_SPRAVCA}</b></p>
-            <p style="margin-bottom:2px;"><b>Predmet ZA:</b> HLAS_ANO_{u['vs']}</p>
-            <p style="margin-bottom:2px;"><b>Predmet PROTI:</b> HLAS_NIE_{u['vs']}</p>
+        <div style="background-color:#f0fff4; padding:15px; border-radius:10px; border:2px solid #38a169; margin-top:20px;">
+            <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne hlasovanie</h4>
+            <p style="color:#2d3748; margin-bottom:5px;">Ak tlačidlá nereagujú, pošlite mail na: <b>{MAIL_SPRAVCA}</b></p>
+            <p style="color:#2d3748; margin-bottom:2px;"><b>Predmet ZA:</b> HLAS:ANO | VS:{u['vs']} | {OTAZKA}</p>
+            <p style="color:#2d3748; margin-bottom:2px;"><b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
+            <p style="color:#4a5568; font-size:0.9em; margin-top:10px;"><i>Poznámka: Make.com automaticky spracuje predmet a zapíše váš hlas do systému.</i></p>
         </div>
         """, unsafe_allow_html=True)
 
-except Exception as e:
-    st.error(f"Vyskytla sa chyba: {e}")
+        # HISTÓRIA
+        st.divider()
+        st.subheader("📜 Moja história hlasovaní")
+        if not df_h.empty:
+            moje_hlasy = df_h[df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_c_clean]
+            if not moje_hlasy.empty:
+                # Zobrazíme stĺpce tak, ako si ich zadal: Otázka, Hlas, Dátum
+                cols = [c for c in ["Otázka", "Otazka", "Hlas", "Datum", "Dátum"] if c in moje_hlasy.columns]
+                st.dataframe(moje_hlasy[cols], hide_index=True, use_container_width=True)
+            else:
+                st.info("Zatiaľ ste sa nezúčastnili žiadneho hlasovania.")
 
-st.markdown("<p style='text-align: center; font-size: 0.8em;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+except Exception as e:
+    st.error(f"Chyba systému: {e}")
