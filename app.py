@@ -61,7 +61,7 @@ if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
                 else: st.error(f"VS {target_vs} nenájdený.")
     st.stop()
 
-# --- PORTÁL ---
+# --- PORTÁL (PO PRIHLÁSENÍ) ---
 try:
     u = st.session_state["user_data"]
     df_p = get_df("Platby")
@@ -69,14 +69,20 @@ try:
     df_h = get_df("Hlasovanie")
     df_n = get_df("Nastenka")
 
-    st.sidebar.markdown(f"### 👤 {u['meno']}")
-    st.sidebar.info(f"VS: {u['vs']}\n\n📧 {u['email']}")
-    if st.sidebar.button("Odhlásiť sa"):
-        st.session_state["auth_pass"] = False
-        st.session_state["user_data"] = None
-        st.rerun()
+    # NOVÉ ZOBRAZENIE HORE (Miesto sidebaru a starého nadpisu)
+    c_top1, c_top2 = st.columns([0.8, 0.2])
+    with c_top1:
+        st.title(f"Vitaj, {u['meno']} 👋")
+        st.caption(f"Prihlásený pod VS: {u['vs']} | {u['email']}")
+    with c_top2:
+        st.write("") # Zarovnanie
+        if st.button("Odhlásiť sa", use_container_width=True):
+            st.session_state["auth_pass"] = False
+            st.session_state["user_data"] = None
+            st.rerun()
 
-    st.title("🏡 Správa areálu Victory Port")
+    st.divider()
+
     tabs = st.tabs(["📢 Nástenka", "📊 Financie", "💰 Moje platby", "🗳️ Anketa"])
 
     # --- T1: NÁSTENKA ---
@@ -90,8 +96,6 @@ try:
             m_body = f"Od: {u['meno']} (VS: {u['vs']})\nEmail: {u['email']}\n\nSpráva:\n{podnet}"
             m_url = f"mailto:{MAIL_SPRAVCA}?subject=Podnet VP {u['vs']}&body={urllib.parse.quote(m_body)}"
             st.link_button("🚀 Odoslať cez e-mail", m_url, use_container_width=True)
-        
-        # Zvýraznený návod pre manuálne odoslanie (vysoký kontrast)
         st.warning(f"**Manuálne odoslanie:** Ak tlačidlo nefunguje, pošlite e-mail na **{MAIL_SPRAVCA}**. Do predmetu vložte vaše **VS: {u['vs']}**.")
 
     # --- T2: FINANCIE ---
@@ -112,7 +116,6 @@ try:
                 p_mes = df_p[stlpce_m].apply(pd.to_numeric, errors="coerce").fillna(0).sum()
                 df_g = pd.DataFrame({"Mesiac": stlpce_m, "Zostatok": (p_mes.values - v_mes.values).cumsum()})
                 
-                # ZELENÝ GRAF
                 fig = px.area(df_g, x="Mesiac", y="Zostatok", title="Vývoj financií", template="plotly_dark")
                 fig.update_traces(line_color='#28a745', fillcolor='rgba(40, 167, 69, 0.3)')
                 st.plotly_chart(fig, use_container_width=True)
@@ -156,15 +159,10 @@ try:
             b1, b2 = st.columns(2)
             s_za = f"HLAS_ANO_{u['vs']}: {OTAZKA}"
             s_ni = f"HLAS_NIE_{u['vs']}: {OTAZKA}"
-            b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_za)}&body=Meno: {u['meno']}", use_container_width=True)
-            b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_ni)}&body=Meno: {u['meno']}", use_container_width=True)
+            b1.link_button("👍 ZA", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_za)}&body=Meno: {u['meno']}", use_container_width=True)
+            b2.link_button("👎 PROTI", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_ni)}&body=Meno: {u['meno']}", use_container_width=True)
             
-            # Manuálny návod pre anketu
-            st.warning(f"""
-            **Návod na manuálne hlasovanie:** Ak tlačidlá nefungujú, pošlite e-mail na **{MAIL_SPRAVCA}**.
-            * Pre hlas **ZA** použite predmet: `{s_za}`
-            * Pre hlas **PROTI** použite predmet: `{s_ni}`
-            """)
+            st.warning(f"**Manuálne hlasovanie:** Ak tlačidlá nefungujú, pošlite mail na **{MAIL_SPRAVCA}**. Predmet ZA: `{s_za}`, Predmet PROTI: `{s_ni}`.")
         else:
             st.info("Žiadna anketa.")
 
