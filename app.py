@@ -85,12 +85,14 @@ try:
         if not df_n.empty: st.table(df_n.iloc[::-1])
         st.divider()
         st.subheader("🛠️ Podnet pre správcu")
-        podnet = st.text_area("Váš podnet:")
+        podnet = st.text_area("Napíšte váš podnet:")
         if podnet:
             m_body = f"Od: {u['meno']} (VS: {u['vs']})\nEmail: {u['email']}\n\nSpráva:\n{podnet}"
             m_url = f"mailto:{MAIL_SPRAVCA}?subject=Podnet VP {u['vs']}&body={urllib.parse.quote(m_body)}"
             st.link_button("🚀 Odoslať cez e-mail", m_url, use_container_width=True)
-        st.info(f"**Manuálne:** Mail na {MAIL_SPRAVCA} (Meno: {u['meno']}, VS: {u['vs']})")
+        
+        # Zvýraznený návod pre manuálne odoslanie (vysoký kontrast)
+        st.warning(f"**Manuálne odoslanie:** Ak tlačidlo nefunguje, pošlite e-mail na **{MAIL_SPRAVCA}**. Do predmetu vložte vaše **VS: {u['vs']}**.")
 
     # --- T2: FINANCIE ---
     with tabs[1]:
@@ -102,26 +104,29 @@ try:
             c1, c2, c3 = st.columns(3)
             c1.metric("Fond celkom", f"{p_sum:.2f} €")
             c2.metric("Výdavky celkom", f"{v_sum:.2f} €")
-            c3.metric("Zostatok", f"{(p_sum - v_sum):.2f} €")
+            c3.metric("Aktuálny zostatok", f"{(p_sum - v_sum):.2f} €")
 
             if not df_v.empty and "Dátum" in df_v.columns:
-                # Pomocné spracovanie dátumov len pre graf
                 df_v["temp_dt"] = pd.to_datetime(df_v["Dátum"], dayfirst=True, errors='coerce')
                 v_mes = df_v.groupby(df_v["temp_dt"].dt.strftime('%m/%y'))["Suma"].sum().reindex(stlpce_m, fill_value=0)
                 p_mes = df_p[stlpce_m].apply(pd.to_numeric, errors="coerce").fillna(0).sum()
                 df_g = pd.DataFrame({"Mesiac": stlpce_m, "Zostatok": (p_mes.values - v_mes.values).cumsum()})
-                st.plotly_chart(px.area(df_g, x="Mesiac", y="Zostatok", title="Vývoj financií", template="plotly_dark"), use_container_width=True)
+                
+                # ZELENÝ GRAF
+                fig = px.area(df_g, x="Mesiac", y="Zostatok", title="Vývoj financií", template="plotly_dark")
+                fig.update_traces(line_color='#28a745', fillcolor='rgba(40, 167, 69, 0.3)')
+                st.plotly_chart(fig, use_container_width=True)
 
         st.subheader("📜 Zoznam výdavkov")
         if not df_v.empty:
-            # Tu filtrujeme stĺpce, aby sme nezobrazovali "temp_dt" alebo "dt"
             zobrazit = [c for c in df_v.columns if c.lower() not in ["dt", "temp_dt"]]
             st.dataframe(
                 df_v[zobrazit], 
                 hide_index=True, 
                 use_container_width=True,
                 column_config={
-                    "Doklad": st.column_config.LinkColumn("Doklad", display_text="Otvoriť link 🔗")
+                    "Doklad": st.column_config.LinkColumn("Doklad", display_text="Otvoriť link 🔗"),
+                    "Suma": st.column_config.NumberColumn("Suma (€)", format="%.2f")
                 }
             )
 
@@ -143,15 +148,23 @@ try:
                 za = len(df_h[df_h[h_col].astype(str).str.upper().str.contains("ANO|ÁNO")])
                 ni = len(df_h[df_h[h_col].astype(str).str.upper().str.contains("NIE")])
                 c1, c2 = st.columns(2)
-                c1.metric("ZA", f"{za} hlasov")
-                c2.metric("PROTI", f"{ni} hlasov")
+                c1.metric("AKTUÁLNE ZA", f"{za} hlasov")
+                c2.metric("AKTUÁLNE PROTI", f"{ni} hlasov")
             
             st.divider()
+            st.write("### Odoslať váš hlas:")
             b1, b2 = st.columns(2)
             s_za = f"HLAS_ANO_{u['vs']}: {OTAZKA}"
             s_ni = f"HLAS_NIE_{u['vs']}: {OTAZKA}"
-            b1.link_button("👍 ZA", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_za)}&body=Meno: {u['meno']}", use_container_width=True)
-            b2.link_button("👎 PROTI", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_ni)}&body=Meno: {u['meno']}", use_container_width=True)
+            b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_za)}&body=Meno: {u['meno']}", use_container_width=True)
+            b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_ni)}&body=Meno: {u['meno']}", use_container_width=True)
+            
+            # Manuálny návod pre anketu
+            st.warning(f"""
+            **Návod na manuálne hlasovanie:** Ak tlačidlá nefungujú, pošlite e-mail na **{MAIL_SPRAVCA}**.
+            * Pre hlas **ZA** použite predmet: `{s_za}`
+            * Pre hlas **PROTI** použite predmet: `{s_ni}`
+            """)
         else:
             st.info("Žiadna anketa.")
 
