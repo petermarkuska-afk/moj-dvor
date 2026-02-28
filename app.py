@@ -134,7 +134,7 @@ try:
                     suma_col: st.column_config.NumberColumn("Suma (€)", format="%.2f")
                 })
 
-    # --- T3: MOJE PLATBY (S INTELIGENTNOU KONTROLOU) ---
+    # --- T3: MOJE PLATBY (TABUĽKA HORE + KONTRAST) ---
     with tabs[2]:
         st.subheader(f"💰 Moje platby (VS: {u['vs']})")
         vs_p = next((c for c in df_p.columns if "VS" in c.upper()), "VS")
@@ -142,12 +142,18 @@ try:
         moje_platby = df_p[df_p[vs_p] == u['vs']]
 
         if not moje_platby.empty:
-            # Dynamická kontrola dlhu
+            # 1. Zobrazenie kontrastnej tabuľky hore
+            st.dataframe(
+                moje_platby, 
+                hide_index=True, 
+                use_container_width=True
+            )
+            
+            # 2. Logika pre výpočet nedoplatkov
             teraz = datetime.now()
             m_aktual = teraz.month
             r_aktual = teraz.year % 100
             
-            # Vygenerujeme zoznam mesiacov od 01/26 po aktuálny mesiac
             mesiace_na_kontrolu = [f"{m:02d}/{r_aktual:02d}" for m in range(1, m_aktual + 1)]
             
             nedoplatky = []
@@ -158,9 +164,11 @@ try:
                 if pd.isna(hodnota) or hodnota <= 0:
                     nedoplatky.append(m)
             
+            # 3. Zobrazenie kontrastného upozornenia pod tabuľkou
+            st.divider()
             if nedoplatky:
                 st.markdown(f"""
-                <div style="background-color:#fff5f5; padding:20px; border-radius:12px; border:3px solid #e53e3e; margin-bottom:20px; text-align:center;">
+                <div style="background-color:#fff5f5; padding:20px; border-radius:12px; border:3px solid #e53e3e; text-align:center;">
                     <h3 style="color:#c53030; margin-top:0;">⚠️ Evidujeme nedoplatok!</h3>
                     <p style="color:#2d3748; font-size:1.1em;">Chýbajúce platby za mesiace: <b>{', '.join(nedoplatky)}</b></p>
                     <p style="color:#4a5568; font-size:0.9em;">Prosíme o urýchlené vyrovnanie záväzkov do fondu opráv.</p>
@@ -168,13 +176,11 @@ try:
                 """, unsafe_allow_html=True)
             else:
                 st.markdown(f"""
-                <div style="background-color:#f0fff4; padding:20px; border-radius:12px; border:3px solid #38a169; margin-bottom:20px; text-align:center;">
+                <div style="background-color:#f0fff4; padding:20px; border-radius:12px; border:3px solid #38a169; text-align:center;">
                     <h3 style="color:#2f855a; margin-top:0;">✅ Platby sú v poriadku</h3>
                     <p style="color:#2d3748;">K dnešnému dňu neevidujeme žiadne podlžnosti.</p>
                 </div>
                 """, unsafe_allow_html=True)
-
-            st.dataframe(moje_platby, hide_index=True, use_container_width=True)
         else:
             st.warning("Pre váš VS neboli nájdené žiadne záznamy o platbách.")
 
@@ -224,9 +230,4 @@ try:
             moje_h = df_h[df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_c_clean]
             if not moje_h.empty:
                 h_cols = [c for c in [c_ot, c_hl, "Datum", "Dátum"] if c in moje_h.columns]
-                st.dataframe(moje_h[h_cols], hide_index=True, use_container_width=True)
-
-except Exception as e:
-    st.error(f"Systémová informácia: {e}")
-
-st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+                st.dataframe(moje_h[h
