@@ -10,7 +10,7 @@ from datetime import datetime
 # ==========================================
 MAIL_SPRAVCA = "petermarkuska@gmail.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
-OTAZKA = "Súhlasíte s výstavbou nového detského ihriska?" 
+OTAZKA = "Súhlasíte s jednorazovým vkladom do fondu areálu?" 
 HLAVNE_HESLO = "Victory2026" 
 MESACNY_PREDPIS = 10.0 
 
@@ -204,3 +204,4 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
