@@ -170,4 +170,34 @@ try:
 
         uz_hlasoval = False
         if not df_h.empty and c_ot in df_h.columns:
-            mask = (df_h[c_vs].astype(str).str.strip().str
+            mask = (df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_cist) & (df_h[c_ot].astype(str).str.strip() == OTAZKA.strip())
+            uz_hlasoval = any(mask)
+
+        if uz_hlasoval:
+            st.success("✅ Váš hlas k tejto téme bol už prijatý.")
+        else:
+            s_za = f"HLAS:ANO | VS:{u['vs']} | {OTAZKA}"
+            s_ni = f"HLAS:NIE | VS:{u['vs']} | {OTAZKA}"
+            b1, b2 = st.columns(2)
+            b1.link_button("👍 ZA", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_za)}", use_container_width=True)
+            b2.link_button("👎 PROTI", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_ni)}", use_container_width=True)
+
+        st.markdown(f"""
+        <div style="background-color:#f0fff4; padding:15px; border-radius:10px; border:2px solid #38a169; margin-top:20px;">
+            <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne hlasovanie</h4>
+            <p style="color:#2d3748;"><b>Predmet ZA:</b> HLAS:ANO | VS:{u['vs']} | {OTAZKA}</p>
+            <p style="color:#2d3748;"><b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.divider()
+        st.subheader("📜 Moja história hlasovaní")
+        if not df_h.empty:
+            moje_h = df_h[df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_cist]
+            if not moje_h.empty:
+                st.dataframe(moje_h, hide_index=True, use_container_width=True)
+
+except Exception as e:
+    st.error(f"Systémová informácia: {e}")
+
+st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
