@@ -5,6 +5,7 @@ import urllib.parse
 import time
 
 # --- KONFIGURÁCIA ---
+# Názov portálu: Správa areálu Victory Port
 MAIL_SPRAVCA = "petermarkuska@gmail.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
 OTAZKA = "Súhlasíte s výstavbou nového detského ihriska?" 
@@ -29,6 +30,7 @@ if "auth_pass" not in st.session_state:
 if "user_data" not in st.session_state:
     st.session_state["user_data"] = None
 
+# 1. KROK: HLAVNÉ HESLO
 if not st.session_state["auth_pass"]:
     st.markdown("<h2 style='text-align: center;'>🔐 Vstup do portálu</h2>", unsafe_allow_html=True)
     heslo_vstup = st.text_input("Zadajte prístupové heslo:", type="password")
@@ -40,6 +42,7 @@ if not st.session_state["auth_pass"]:
             st.error("Nesprávne heslo!")
     st.stop()
 
+# 2. KROK: IDENTIFIKÁCIA PODĽA VS
 if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
     st.markdown("<h2 style='text-align: center;'>🔑 Identifikácia majiteľa</h2>", unsafe_allow_html=True)
     vs_vstup = st.text_input("Zadajte váš Variabilný symbol (VS):", placeholder="Napr. 1007")
@@ -58,10 +61,10 @@ if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
                         "email": str(user_row.iloc[0].get("Email", "Neuvedený"))
                     }
                     st.rerun()
-                else: st.error(f"VS {target_vs} nenájdený.")
+                else: st.error(f"VS {target_vs} nenájdený v adresári.")
     st.stop()
 
-# --- PORTÁL ---
+# --- PORTÁL (PO PRIHLÁSENÍ) ---
 try:
     u = st.session_state["user_data"]
     df_p = get_df("Platby")
@@ -94,10 +97,10 @@ try:
         st.link_button("🚀 Odoslať podnet automaticky", m_url, use_container_width=True)
         
         st.markdown(f"""
-        <div style="background-color:#fef2f2; padding:15px; border-radius:10px; border:2px solid #ef4444; margin-top:15px;">
+        <div style="background-color:#fef2f2; padding:15px; border-radius:10px; border:2px solid #ef4444; margin-top:15px; color:#1f2937;">
             <h4 style="color:#b91c1c; margin-top:0;">📩 Manuálny návod (Ak tlačidlo nefunguje)</h4>
-            <p style="color:#1f2937; margin-bottom:5px;">Pošlite e-mail ručne na: <b>{MAIL_SPRAVCA}</b></p>
-            <p style="color:#1f2937; margin-bottom:5px;"><b>Predmet:</b> Podnet VP {u['vs']}</p>
+            <p>Pošlite e-mail ručne na: <b>{MAIL_SPRAVCA}</b></p>
+            <p><b>Predmet:</b> Podnet VP {u['vs']}</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -126,11 +129,9 @@ try:
             zobrazit = [c for c in df_v.columns if c.lower() not in ["dt", "temp_dt"]]
             st.dataframe(df_v[zobrazit], hide_index=True, use_container_width=True,
                 column_config={
-                    "Doklad": st.column_config.LinkColumn("Doklad", display_text="Zobraziť 🔗"),
+                    "Doklad": st.column_config.LinkColumn("Doklad", display_text="Otvoriť link 🔗"),
                     "Suma": st.column_config.NumberColumn("Suma (€)", format="%.2f")
                 })
-        else:
-            st.info("Zatiaľ neboli zaevidované žiadne výdavky.")
 
     # --- T3: MOJE PLATBY ---
     with tabs[2]:
@@ -146,6 +147,8 @@ try:
         st.subheader(f"🗳️ {OTAZKA}")
         v_c_clean = u['vs'].lstrip('0')
         uz_hlasoval = False
+        
+        # Overenie, či už VS hlasoval
         if not df_h.empty:
             vs_col_h = next((c for c in df_h.columns if "VS" in c.upper()), df_h.columns[0])
             if any(df_h[vs_col_h].astype(str).str.strip().str.lstrip('0') == v_c_clean):
@@ -161,25 +164,25 @@ try:
 
         st.divider()
         if uz_hlasoval:
-            st.success("✅ **Váš hlas už bol úspešne prijatý. Ďakujeme!**")
+            st.success("✅ **Váš hlas už bol prijatý. Ďakujeme za účasť v hlasovaní!**")
         else:
-            st.write("### Vyjadrite svoj názor:")
+            st.write("### Odovzdajte svoj hlas:")
             b1, b2 = st.columns(2)
             s_za = f"HLAS_ANO_{u['vs']}: {OTAZKA}"
             s_ni = f"HLAS_NIE_{u['vs']}: {OTAZKA}"
-            b1.link_button("👍 ZA", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_za)}&body=Meno: {u['meno']}", use_container_width=True)
-            b2.link_button("👎 PROTI", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_ni)}&body=Meno: {u['meno']}", use_container_width=True)
+            b1.link_button("👍 HLASUJEM ZA", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_za)}&body=Meno: {u['meno']}", use_container_width=True)
+            b2.link_button("👎 HLASUJEM PROTI", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_ni)}&body=Meno: {u['meno']}", use_container_width=True)
 
         st.markdown(f"""
-        <div style="background-color:#f0fdf4; padding:15px; border-radius:10px; border:2px solid #16a34a; margin-top:20px;">
-            <h4 style="color:#15803d; margin-top:0;">📝 Manuálne hlasovanie</h4>
-            <p style="color:#1f2937; margin-bottom:5px;">Ak tlačidlá nereagujú, pošlite mail na: <b>{MAIL_SPRAVCA}</b></p>
-            <p style="color:#1f2937; margin-bottom:2px;"><b>Predmet ZA:</b> HLAS_ANO_{u['vs']}</p>
-            <p style="color:#1f2937; margin-bottom:2px;"><b>Predmet PROTI:</b> HLAS_NIE_{u['vs']}</p>
+        <div style="background-color:#f0fdf4; padding:15px; border-radius:10px; border:2px solid #16a34a; margin-top:20px; color:#1f2937;">
+            <h4 style="color:#15803d; margin-top:0;">📝 Manuálne hlasovanie (Ak tlačidlá nereagujú)</h4>
+            <p>Pošlite e-mail na: <b>{MAIL_SPRAVCA}</b></p>
+            <p style="margin-bottom:2px;"><b>Predmet ZA:</b> HLAS_ANO_{u['vs']}</p>
+            <p style="margin-bottom:2px;"><b>Predmet PROTI:</b> HLAS_NIE_{u['vs']}</p>
         </div>
         """, unsafe_allow_html=True)
 
 except Exception as e:
-    st.error(f"Chyba: {e}")
+    st.error(f"Vyskytla sa chyba: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
