@@ -8,16 +8,14 @@ from datetime import datetime
 # ==========================================
 # 1. KONFIGURÁCIA PORTÁLU
 # ==========================================
-# Názov portálu: Správa areálu Victory Port
 MAIL_SPRAVCA = "petermarkuska@gmail.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
 OTAZKA = "Súhlasíte s výstavbou nového detského ihriska?" 
 HLAVNE_HESLO = "Victory2026" 
-MESACNY_PREDPIS = 10.0  # Výška mesačného príspevku na majiteľa
+MESACNY_PREDPIS = 10.0 
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
 
-# --- FUNKCIA NA NAČÍTANIE DÁT (CACHE BUSTING) ---
 def get_df(sheet):
     try:
         cache_bust = int(time.time())
@@ -29,12 +27,11 @@ def get_df(sheet):
         return pd.DataFrame()
 
 # ==========================================
-# 2. AUTENTIFIKÁCIA (HESLO + VS)
+# 2. AUTENTIFIKÁCIA
 # ==========================================
 if "auth_pass" not in st.session_state: st.session_state["auth_pass"] = False
 if "user_data" not in st.session_state: st.session_state["user_data"] = None
 
-# KROK 1: Vstup do portálu
 if not st.session_state["auth_pass"]:
     st.markdown("<h2 style='text-align: center;'>🔐 Vstup do portálu</h2>", unsafe_allow_html=True)
     heslo_vstup = st.text_input("Zadajte prístupové heslo:", type="password")
@@ -45,7 +42,6 @@ if not st.session_state["auth_pass"]:
         else: st.error("Nesprávne heslo!")
     st.stop()
 
-# KROK 2: Identifikácia podľa VS
 if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
     st.markdown("<h2 style='text-align: center;'>🔑 Identifikácia majiteľa</h2>", unsafe_allow_html=True)
     vs_vstup = st.text_input("Zadajte váš Variabilný symbol (VS):", placeholder="Napr. 1007")
@@ -64,11 +60,11 @@ if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
                         "email": str(user_row.iloc[0].get("Email", "Neuvedený"))
                     }
                     st.rerun()
-                else: st.error(f"VS {target_vs} nenájdený v adresári.")
+                else: st.error(f"VS {target_vs} nenájdený.")
     st.stop()
 
 # ==========================================
-# 3. PORTÁL (PO PRIHLÁSENÍ)
+# 3. HLAVNÝ PORTÁL
 # ==========================================
 try:
     u = st.session_state["user_data"]
@@ -88,14 +84,14 @@ try:
     st.divider()
     tabs = st.tabs(["📢 Nástenka", "📊 Financie", "💰 Moje platby", "🗳️ Anketa"])
 
-    # --- T1: NÁSTENKA ---
+    # --- T1: NÁSTENKA + PODNET ---
     with tabs[0]:
         st.subheader("📢 Aktuálne oznamy")
         if not df_n.empty: st.table(df_n.iloc[::-1])
         st.divider()
         st.subheader("🛠️ Podnet pre správcu")
-        podnet = st.text_area("Napíšte váš podnet:")
-        m_body = f"Od: {u['meno']} (VS: {u['vs']})\nEmail: {u['email']}\n\nSpráva:\n{podnet}"
+        podnet_text = st.text_area("Napíšte váš podnet:")
+        m_body = f"Od: {u['meno']} (VS: {u['vs']})\nEmail: {u['email']}\n\nPopis problému:\n{podnet_text}"
         m_url = f"mailto:{MAIL_SPRAVCA}?subject=Podnet VP {u['vs']}&body={urllib.parse.quote(m_body)}"
         st.link_button("🚀 Odoslať podnet automaticky", m_url, use_container_width=True)
         
@@ -103,11 +99,12 @@ try:
         <div style="background-color:#fff5f5; padding:15px; border-radius:10px; border:2px solid #e53e3e; margin-top:15px;">
             <h4 style="color:#c53030; margin-top:0;">📩 Manuálny návod</h4>
             <p style="color:#2d3748;">Pošlite e-mail na: <b>{MAIL_SPRAVCA}</b><br>
-            Predmet: <b>Podnet VP {u['vs']}</b></p>
+            Predmet: <b>Podnet VP {u['vs']}</b><br>
+            Obsah: <b>Do textu mailu, prosím, podrobne popíšte váš problém.</b></p>
         </div>
         """, unsafe_allow_html=True)
 
-    # --- T2: FINANCIE (GRAF + ČISTÝ ZOZNAM) ---
+    # --- T2: FINANCIE ---
     with tabs[1]:
         if not df_p.empty:
             stlpce_m = [c for c in df_p.columns if "/26" in c]
@@ -130,15 +127,11 @@ try:
 
         st.subheader("📜 Zoznam výdavkov")
         if not df_v.empty:
-            # Zobrazenie len relevantných stĺpsov (bez technických)
             show_cols = [c for c in df_v.columns if c != "temp_dt"]
             st.dataframe(df_v[show_cols], hide_index=True, use_container_width=True,
-                column_config={
-                    "Doklad": st.column_config.LinkColumn("Doklad 🔗", display_text="Otvoriť"),
-                    "Suma": st.column_config.NumberColumn("Suma (€)", format="%.2f")
-                })
+                column_config={"Doklad": st.column_config.LinkColumn("Doklad 🔗", display_text="Otvoriť")})
 
-    # --- T3: MOJE PLATBY (KUMULATÍVNA LOGIKA) ---
+    # --- T3: MOJE PLATBY ---
     with tabs[2]:
         st.subheader(f"💰 Moje platby (VS: {u['vs']})")
         vs_p = next((c for c in df_p.columns if "VS" in c.upper()), "VS")
@@ -147,8 +140,6 @@ try:
 
         if not moje_platby.empty:
             st.dataframe(moje_platby, hide_index=True, use_container_width=True)
-            
-            # Kumulatívny výpočet (napr. Marec = 3x predpis)
             t = datetime.now()
             ocakavane = t.month * MESACNY_PREDPIS
             stlpce_26 = [c for c in moje_platby.columns if "/26" in c]
@@ -168,20 +159,17 @@ try:
                 st.markdown(f"""
                 <div style="background-color:#f0fff4; padding:20px; border-radius:12px; border:3px solid #38a169; text-align:center;">
                     <h3 style="color:#2f855a; margin-top:0;">✅ Platby sú v poriadku</h3>
-                    <p style="color:#2d3748;">Vaša celková suma úhrad <b>{realne:.2f} €</b> pokrýva predpis <b>{ocakavane:.2f} €</b>.</p>
+                    <p style="color:#2d3748;">Celkom uhradené <b>{realne:.2f} €</b> (pokrýva predpis <b>{ocakavane:.2f} €</b>).</p>
                     <p style="color:#2d3748;">Máte preplatok: <b>{bilancia:.2f} €</b></p>
                 </div>
                 """, unsafe_allow_html=True)
-        else:
-            st.warning("Pre váš VS sa nenašli záznamy.")
 
-    # --- T4: ANKETA (S MANUÁLOM A HISTÓRIOU) ---
+    # --- T4: ANKETA ---
     with tabs[3]:
         st.subheader(f"🗳️ {OTAZKA}")
         v_cist = u['vs'].lstrip('0')
         c_vs = next((c for c in df_h.columns if "VS" in c.upper()), "VS")
         c_ot = next((c for c in df_h.columns if "OTAZKA" in str(c).upper().replace("Á","A")), "Otázka")
-        c_hl = next((c for c in df_h.columns if "HLAS" in c.upper()), "Hlas")
 
         uz_hlasoval = False
         if not df_h.empty and c_ot in df_h.columns:
@@ -209,8 +197,7 @@ try:
         st.subheader("📜 Moja história hlasovaní")
         if not df_h.empty:
             moje_h = df_h[df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_cist]
-            if not moje_h.empty:
-                st.dataframe(moje_h, hide_index=True, use_container_width=True)
+            if not moje_h.empty: st.dataframe(moje_h, hide_index=True, use_container_width=True)
 
 except Exception as e:
     st.error(f"Systémová informácia: {e}")
