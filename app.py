@@ -102,7 +102,7 @@ try:
         </div>
         """, unsafe_allow_html=True)
 
-    # --- T2: FINANCIE ---
+    # --- T2: FINANCIE (OPRAVENÁ TABUĽKA S LINKAMI) ---
     with tabs[1]:
         if not df_p.empty:
             stlpce_m = [c for c in df_p.columns if "/26" in c]
@@ -124,8 +124,23 @@ try:
 
         st.subheader("📜 Zoznam výdavkov")
         if not df_v.empty:
-            zobrazit = [c for c in df_v.columns if c.lower() not in ["dt", "temp_dt"]]
-            st.dataframe(df_v[zobrazit], hide_index=True, use_container_width=True)
+            # Dynamické zistenie stĺpca pre doklad
+            doklad_col = next((c for c in df_v.columns if "DOKLAD" in c.upper()), "Doklad")
+            suma_col = next((c for c in df_v.columns if "SUMA" in c.upper()), "Suma")
+            
+            zobrazit_cols = [c for c in df_v.columns if c.lower() not in ["dt", "temp_dt"]]
+            
+            st.dataframe(
+                df_v[zobrazit_cols], 
+                hide_index=True, 
+                use_container_width=True,
+                column_config={
+                    doklad_col: st.column_config.LinkColumn("Doklad 🔗", display_text="Otvoriť"),
+                    suma_col: st.column_config.NumberColumn("Suma (€)", format="%.2f")
+                }
+            )
+        else:
+            st.info("Zoznam výdavkov je prázdny.")
 
     # --- T3: MOJE PLATBY ---
     with tabs[2]:
@@ -136,28 +151,23 @@ try:
             moje = df_p[df_p[vs_p] == u['vs']]
             st.dataframe(moje, hide_index=True, use_container_width=True)
 
-    # --- T4: ANKETA (HISTÓRIA A ZÁPIS) ---
+    # --- T4: ANKETA ---
     with tabs[3]:
         st.subheader(f"🗳️ {OTAZKA}")
         v_c_clean = u['vs'].lstrip('0')
         uz_hlasoval = False
         
-        # Kontrola hlasovania pre aktuálnu otázku
-        if not df_h.empty:
-            # Ošetrenie názvov stĺpcov podľa tvojho zadania
-            # Hľadáme VS, Otázka, Hlas
-            c_vs = "VS" if "VS" in df_h.columns else df_h.columns[0]
-            c_ot = "Otázka" if "Otázka" in df_h.columns else ("Otazka" if "Otazka" in df_h.columns else None)
-            c_hl = "Hlas" if "Hlas" in df_h.columns else df_h.columns[-1]
+        c_vs = "VS" if "VS" in df_h.columns else df_h.columns[0]
+        c_ot = "Otázka" if "Otázka" in df_h.columns else ("Otazka" if "Otazka" in df_h.columns else None)
+        c_hl = "Hlas" if "Hlas" in df_h.columns else df_h.columns[-1]
 
-            if c_ot:
-                mask = (df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_c_clean) & \
-                       (df_h[c_ot].astype(str).str.strip() == OTAZKA.strip())
-                if any(mask):
-                    uz_hlasoval = True
+        if not df_h.empty and c_ot:
+            mask = (df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_c_clean) & \
+                   (df_h[c_ot].astype(str).str.strip() == OTAZKA.strip())
+            if any(mask):
+                uz_hlasoval = True
 
-            # Výsledky aktuálnej ankety
-            curr_data = df_h[df_h[c_ot].astype(str).str.strip() == OTAZKA.strip()] if c_ot else df_h
+            curr_data = df_h[df_h[c_ot].astype(str).str.strip() == OTAZKA.strip()]
             za = len(curr_data[curr_data[c_hl].astype(str).str.upper().str.contains("ANO|ÁNO")])
             ni = len(curr_data[curr_data[c_hl].astype(str).str.upper().str.contains("NIE")])
             c1, c2 = st.columns(2)
@@ -170,34 +180,31 @@ try:
         else:
             st.write("### Hlasovať automaticky:")
             b1, b2 = st.columns(2)
-            # Formát pre Make.com: HLAS:ODPOVED | VS:CISLO | TEXT_OTAZKY
             s_za = f"HLAS:ANO | VS:{u['vs']} | {OTAZKA}"
             s_ni = f"HLAS:NIE | VS:{u['vs']} | {OTAZKA}"
             b1.link_button("👍 ZA", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_za)}&body=Meno: {u['meno']}", use_container_width=True)
             b2.link_button("👎 PROTI", f"mailto:{MAIL_SPRAVCA}?subject={urllib.parse.quote(s_ni)}&body=Meno: {u['meno']}", use_container_width=True)
 
-        # MANUÁLNY NÁVOD ANKETA
         st.markdown(f"""
         <div style="background-color:#f0fff4; padding:15px; border-radius:10px; border:2px solid #38a169; margin-top:20px;">
             <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne hlasovanie</h4>
             <p style="color:#2d3748; margin-bottom:5px;">Ak tlačidlá nereagujú, pošlite mail na: <b>{MAIL_SPRAVCA}</b></p>
             <p style="color:#2d3748; margin-bottom:2px;"><b>Predmet ZA:</b> HLAS:ANO | VS:{u['vs']} | {OTAZKA}</p>
             <p style="color:#2d3748; margin-bottom:2px;"><b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
-            <p style="color:#4a5568; font-size:0.9em; margin-top:10px;"><i>Poznámka: Make.com automaticky spracuje predmet a zapíše váš hlas do systému.</i></p>
         </div>
         """, unsafe_allow_html=True)
 
-        # HISTÓRIA
         st.divider()
         st.subheader("📜 Moja história hlasovaní")
         if not df_h.empty:
             moje_hlasy = df_h[df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_c_clean]
             if not moje_hlasy.empty:
-                # Zobrazíme stĺpce tak, ako si ich zadal: Otázka, Hlas, Dátum
                 cols = [c for c in ["Otázka", "Otazka", "Hlas", "Datum", "Dátum"] if c in moje_hlasy.columns]
                 st.dataframe(moje_hlasy[cols], hide_index=True, use_container_width=True)
             else:
-                st.info("Zatiaľ ste sa nezúčastnili žiadneho hlasovania.")
+                st.info("Zatiaľ žiadna história.")
 
 except Exception as e:
     st.error(f"Chyba systému: {e}")
+
+st.markdown("<p style='text-align: center; font-size: 0.8em;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
