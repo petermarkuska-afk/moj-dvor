@@ -132,7 +132,7 @@ try:
             st.dataframe(df_v[show_cols], hide_index=True, use_container_width=True,
                 column_config={"Doklad": st.column_config.LinkColumn("Doklad 🔗", display_text="Otvoriť")})
 
-    # --- T3: MOJE PLATBY ---
+    # --- T3: MOJE PLATBY (S DOPLNENOU LOGIKOU VÝPOČTU) ---
     with tabs[2]:
         st.subheader(f"💰 Moje platby (VS: {u['vs']})")
         vs_p = next((c for c in df_p.columns if "VS" in c.upper()), "VS")
@@ -142,6 +142,7 @@ try:
         if not moje_platby.empty:
             st.dataframe(moje_platby, hide_index=True, use_container_width=True)
             t = datetime.now()
+            # Výpočet predpisu: aktuálny mesiac (napr. február = 2) * 10€
             ocakavane = t.month * MESACNY_PREDPIS
             stlpce_26 = [c for c in moje_platby.columns if "/26" in c]
             realne = pd.to_numeric(moje_platby.iloc[0][stlpce_26], errors='coerce').fillna(0).sum()
@@ -151,15 +152,20 @@ try:
             if bilancia < 0:
                 st.markdown(f"""<div style="background-color:#fff5f5; padding:20px; border-radius:12px; border:3px solid #e53e3e; text-align:center;">
                     <h3 style="color:#c53030; margin-top:0;">⚠️ Evidujeme nedoplatok: {abs(bilancia):.2f} €</h3>
-                    <p>K dnešnému dňu má byť spolu: <b>{ocakavane:.2f} €</b> | Realita: <b>{realne:.2f} €</b></p>
+                    <p style="color:#2d3748; font-size:1.1em;"><b>Ako sme k tomu prišli?</b></p>
+                    <p style="color:#2d3748;">K dnešnému dňu (mesiac {t.month}/2026) má byť podľa predpisu (10 € / mesiac) uhradených spolu: <b>{ocakavane:.2f} €</b>.</p>
+                    <p style="color:#2d3748;">Vaša celková suma pripísaných úhrad v systéme je: <b>{realne:.2f} €</b>.</p>
+                    <p style="color:#c53030; font-weight:bold;">Rozdiel: {realne:.2f} € - {ocakavane:.2f} € = {bilancia:.2f} €</p>
                 </div>""", unsafe_allow_html=True)
             else:
                 st.markdown(f"""<div style="background-color:#f0fff4; padding:20px; border-radius:12px; border:3px solid #38a169; text-align:center;">
                     <h3 style="color:#2f855a; margin-top:0;">✅ Platby sú v poriadku</h3>
-                    <p>Preplatok: <b>{bilancia:.2f} €</b></p>
+                    <p style="color:#2d3748;">K dnešnému dňu (mesiac {t.month}/2026) má byť uhradených spolu: <b>{ocakavane:.2f} €</b>.</p>
+                    <p style="color:#2d3748;">Vaša celková suma úhrad v systéme: <b>{realne:.2f} €</b>.</p>
+                    <p style="color:#2f855a; font-weight:bold;">Máte preplatok: {bilancia:.2f} €</p>
                 </div>""", unsafe_allow_html=True)
 
-    # --- T4: ANKETA (S HISTÓRIOU) ---
+    # --- T4: ANKETA ---
     with tabs[3]:
         st.subheader(f"🗳️ {OTAZKA}")
         v_cist = u['vs'].lstrip('0')
@@ -187,7 +193,6 @@ try:
             <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
         </div>""", unsafe_allow_html=True)
 
-        # NAVRÁTENÁ HISTÓRIA HLASOVANIA
         st.divider()
         st.subheader("📜 Moja história hlasovaní")
         if not df_h.empty:
