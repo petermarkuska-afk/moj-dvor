@@ -98,9 +98,9 @@ try:
         st.markdown(f"""
         <div style="background-color:#fff5f5; padding:15px; border-radius:10px; border:2px solid #e53e3e; margin-top:15px;">
             <h4 style="color:#c53030; margin-top:0;">📩 Manuálny návod</h4>
-            <p style="color:#2d3748;">Pošlite e-mail na: <b>{MAIL_SPRAVCA}</b><br>
+            <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
             Predmet: <b>Podnet VP {u['vs']}</b><br>
-            Obsah: <b>Do textu mailu, prosím, podrobne popíšte váš problém.</b></p>
+            Obsah: <b>Do textu e-mailu, prosím, podrobne popíšte váš problém.</b></p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -188,8 +188,9 @@ try:
         st.markdown(f"""
         <div style="background-color:#f0fff4; padding:15px; border-radius:10px; border:2px solid #38a169; margin-top:20px;">
             <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne hlasovanie</h4>
-            <p style="color:#2d3748;"><b>Predmet ZA:</b> HLAS:ANO | VS:{u['vs']} | {OTAZKA}</p>
-            <p style="color:#2d3748;"><b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
+            <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
+            <b>Predmet ZA:</b> HLAS:ANO | VS:{u['vs']} | {OTAZKA}<br>
+            <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
         </div>
         """, unsafe_allow_html=True)
 
