@@ -202,16 +202,34 @@ try:
             else:
                 st.info("Zatiaľ ste v systéme nehlasovali.")
 
-    # --- T5: MIESTNY POKEC ---
+   # --- T5: MIESTNY POKEC ---
     with tabs[4]:
         st.subheader("💬 Verejná nástenka odkazov")
         st.write("Chcete niečo odkázať susedom? Napíšte správu sem. Po schválení správcom sa zobrazí všetkým.")
         
+        # Textové pole pre správu
         nova_sprava = st.text_area("Vaša správa pre susedov:", placeholder="Napr. Susedia, v sobotu robíme guláš...", key="pokec_area")
-        dnes = datetime.now().strftime("%d.%m.%Y %H:%M")
-        o_subj = urllib.parse.quote(f"ODKAZ NA NÁSTENKU | VS:{u['vs']}")
-        o_body = urllib.parse.quote(f"Dátum: {dnes}\nMeno: {u['meno']}\nVS: {u['vs']}\n\nTEXT ODKAZU:\n{nova_sprava}")
-        st.link_button("✉️ Odoslať správu na zverejnenie", f"mailto:{MAIL_SPRAVCA}?subject={o_subj}&body={o_body}", use_container_width=True)
+        
+        if nova_sprava:
+            dnes = datetime.now().strftime("%d.%m.%Y")
+            o_subj = f"ODKAZ NA NASTENKU | VS:{u['vs']}"
+            
+            # Pripravíme čistý text pre body
+            telo_textu = f"Datum: {dnes}\nMeno: {u['meno']}\nVS: {u['vs']}\n\nODKAZ:\n{nova_sprava}"
+            
+            # Zakódovanie pre mailto
+            o_subj_encoded = urllib.parse.quote(o_subj)
+            o_body_encoded = urllib.parse.quote(telo_textu)
+            
+            mail_link = f"mailto:{MAIL_SPRAVCA}?subject={o_subj_encoded}&body={o_body_encoded}"
+            
+            st.link_button("✉️ Otvoriť e-mail s týmto textom", mail_link, use_container_width=True)
+            
+            with st.expander("Nefunguje vám automatický e-mail?"):
+                st.write("Skopírujte si text nižšie a pošlite ho manuálne na:", MAIL_SPRAVCA)
+                st.code(telo_textu, language="text")
+        else:
+            st.warning("Napíšte najprv text správy, aby sa vygenerovalo tlačidlo na odoslanie.")
         
         st.markdown(f"""<div style="background-color:#f0fff4; padding:15px; border-radius:10px; border:2px solid #38a169; margin-top:20px;">
             <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne odoslanie odkazu</h4>
