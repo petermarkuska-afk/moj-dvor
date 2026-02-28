@@ -132,7 +132,7 @@ try:
             st.dataframe(df_v[show_cols], hide_index=True, use_container_width=True,
                 column_config={"Doklad": st.column_config.LinkColumn("Doklad 🔗", display_text="Otvoriť")})
 
-    # --- T3: MOJE PLATBY (S DOPLNENOU LOGIKOU VÝPOČTU) ---
+    # --- T3: MOJE PLATBY ---
     with tabs[2]:
         st.subheader(f"💰 Moje platby (VS: {u['vs']})")
         vs_p = next((c for c in df_p.columns if "VS" in c.upper()), "VS")
@@ -142,7 +142,6 @@ try:
         if not moje_platby.empty:
             st.dataframe(moje_platby, hide_index=True, use_container_width=True)
             t = datetime.now()
-            # Výpočet predpisu: aktuálny mesiac (napr. február = 2) * 10€
             ocakavane = t.month * MESACNY_PREDPIS
             stlpce_26 = [c for c in moje_platby.columns if "/26" in c]
             realne = pd.to_numeric(moje_platby.iloc[0][stlpce_26], errors='coerce').fillna(0).sum()
@@ -165,9 +164,28 @@ try:
                     <p style="color:#2f855a; font-weight:bold;">Máte preplatok: {bilancia:.2f} €</p>
                 </div>""", unsafe_allow_html=True)
 
-    # --- T4: ANKETA ---
+    # --- T4: ANKETA (S VÝSLEDKAMI) ---
     with tabs[3]:
         st.subheader(f"🗳️ {OTAZKA}")
+        
+        # Sčítanie hlasov zo stĺpca "Hlas" (predpokladáme hodnoty ÁNO/NIE alebo ZA/PROTI)
+        if not df_h.empty:
+            c_hl = next((c for c in df_h.columns if "HLAS" in c.upper()), "Hlas")
+            c_ot_all = next((c for c in df_h.columns if "OTAZKA" in str(c).upper().replace("Á","A")), "Otázka")
+            
+            # Filtrujeme hlasy len pre aktuálnu otázku
+            df_current_h = df_h[df_h[c_ot_all].astype(str).str.strip() == OTAZKA.strip()]
+            
+            pocet_za = len(df_current_h[df_current_h[c_hl].astype(str).str.upper().str.contains("ANO|ZA")])
+            pocet_proti = len(df_current_h[df_current_h[c_hl].astype(str).str.upper().str.contains("NIE|PROTI")])
+            
+            st.write("### Aktuálny stav hlasovania")
+            s1, s2, s3 = st.columns(3)
+            s1.metric("ZA 👍", f"{pocet_za}")
+            s2.metric("PROTI 👎", f"{pocet_proti}")
+            s3.metric("Spolu", f"{pocet_za + pocet_proti}")
+
+        st.divider()
         v_cist = u['vs'].lstrip('0')
         c_vs = next((c for c in df_h.columns if "VS" in c.upper()), "VS")
         c_ot = next((c for c in df_h.columns if "OTAZKA" in str(c).upper().replace("Á","A")), "Otázka")
@@ -202,40 +220,31 @@ try:
             else:
                 st.info("Zatiaľ ste v systéme nehlasovali.")
 
-   # --- T5: MIESTNY POKEC ---
+    # --- T5: MIESTNY POKEC ---
     with tabs[4]:
         st.subheader("💬 Verejná nástenka odkazov")
         st.write("Chcete niečo odkázať susedom? Napíšte správu sem. Po schválení správcom sa zobrazí všetkým.")
         
-        # Textové pole pre správu
         nova_sprava = st.text_area("Vaša správa pre susedov:", placeholder="Napr. Susedia, v sobotu robíme guláš...", key="pokec_area")
         
         if nova_sprava:
             dnes = datetime.now().strftime("%d.%m.%Y")
             o_subj = f"ODKAZ NA NASTENKU | VS:{u['vs']}"
-            
-            # Pripravíme čistý text pre body
             telo_textu = f"Datum: {dnes}\nMeno: {u['meno']}\nVS: {u['vs']}\n\nODKAZ:\n{nova_sprava}"
-            
-            # Zakódovanie pre mailto
             o_subj_encoded = urllib.parse.quote(o_subj)
             o_body_encoded = urllib.parse.quote(telo_textu)
-            
             mail_link = f"mailto:{MAIL_SPRAVCA}?subject={o_subj_encoded}&body={o_body_encoded}"
             
             st.link_button("✉️ Otvoriť e-mail s týmto textom", mail_link, use_container_width=True)
-            
             with st.expander("Nefunguje vám automatický e-mail?"):
-                st.write("Skopírujte si text nižšie a pošlite ho manuálne na:", MAIL_SPRAVCA)
                 st.code(telo_textu, language="text")
         else:
-            st.warning("Napíšte najprv text správy, aby sa vygenerovalo tlačidlo na odoslanie.")
+            st.warning("Napíšte najprv text správy.")
         
         st.markdown(f"""<div style="background-color:#f0fff4; padding:15px; border-radius:10px; border:2px solid #38a169; margin-top:20px;">
             <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne odoslanie odkazu</h4>
             <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
-            <b>Predmet:</b> ODKAZ NA NÁSTENKU | VS:{u['vs']}<br>
-            <b>Obsah:</b> Do textu e-mailu napíšte váš odkaz, ktorý chcete zverejniť susedom.</p>
+            <b>Predmet:</b> ODKAZ NA NÁSTENKU | VS:{u['vs']}</p>
         </div>""", unsafe_allow_html=True)
 
         st.divider()
@@ -245,10 +254,4 @@ try:
                 with st.chat_message("user"):
                     st.write(f"**{row.get('Meno', 'Neznámy')}** ({row.get('Dátum', '')})")
                     st.info(row.get('Odkaz', 'Bez textu'))
-        else:
-            st.info("Zatiaľ tu nie sú žiadne verejné odkazy.")
-
-except Exception as e:
-    st.error(f"Systémová informácia: {e}")
-
-st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+        else
