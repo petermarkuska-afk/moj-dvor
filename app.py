@@ -72,7 +72,7 @@ try:
     df_v = get_df("Vydavky")
     df_h = get_df("Hlasovanie")
     df_n = get_df("Nastenka")
-    df_o = get_df("Odkazy") # Načítanie nového hárka pre verejné odkazy
+    df_o = get_df("Odkazy")
 
     st.markdown(f"<h1 style='text-align: center;'>Vitaj, {u['meno']} 👋</h1>", unsafe_allow_html=True)
     
@@ -83,7 +83,6 @@ try:
             st.rerun()
 
     st.divider()
-    # Pridaná záložka "Miestny pokec"
     tabs = st.tabs(["📢 Nástenka", "📊 Financie", "💰 Moje platby", "🗳️ Anketa", "💬 Miestny pokec"])
 
     # --- T1: NÁSTENKA + PODNET ---
@@ -196,7 +195,7 @@ try:
             moje_h = df_h[df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_cist]
             if not moje_h.empty: st.dataframe(moje_h, hide_index=True, use_container_width=True)
 
-    # --- T5: MIESTNY POKEC (NOVINKA) ---
+    # --- T5: MIESTNY POKEC ---
     with tabs[4]:
         st.subheader("💬 Verejná nástenka odkazov")
         st.write("Chcete niečo odkázať susedom? Napíšte správu sem. Po schválení správcom sa zobrazí všetkým.")
@@ -208,10 +207,17 @@ try:
         
         st.link_button("✉️ Odoslať správu na zverejnenie", s_url, use_container_width=True)
         
+        # Manuálny návod pre odkazy v rovnakom štýle ako v iných sekciách
+        st.markdown(f"""<div style="background-color:#f0fff4; padding:15px; border-radius:10px; border:2px solid #38a169; margin-top:20px;">
+            <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne odoslanie odkazu</h4>
+            <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
+            <b>Predmet:</b> ODKAZ NA NÁSTENKU | VS:{u['vs']}<br>
+            <b>Obsah:</b> Do textu e-mailu napíšte váš odkaz, ktorý chcete zverejniť susedom.</p>
+        </div>""", unsafe_allow_html=True)
+
         st.divider()
         st.subheader("📌 Posledné správy")
         if not df_o.empty:
-            # Iterácia od najnovšieho odkazu
             for _, row in df_o.iloc[::-1].iterrows():
                 with st.chat_message("user"):
                     st.write(f"**{row.get('Meno', 'Neznámy')}** ({row.get('Dátum', '')})")
