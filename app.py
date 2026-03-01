@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 # ==========================================
 MAIL_SPRAVCA = "petermarkuska@gmail.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
-IBAN_FONDU = "SK0000000000000000000000"  # <--- SEM VLOŽ SKUTOČNÝ IBAN
+IBAN_FONDU = "SK2083300000002001913863"  # <--- SEM VLOŽ SKUTOČNÝ IBAN
 
 # SEM ZADAJTE NOVÚ OTÁZKU (Ak napíšete "ŽIADNA", modul zmizne)
 OTAZKA = "Súhlasíte s jednorazovým vkladom do fondu areálu?" 
@@ -275,3 +275,4 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
