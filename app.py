@@ -89,7 +89,6 @@ try:
 
     # --- T1: NÁSTENKA ---
     with tabs[0]:
-        # --- LOGIKA ODPOČTU S POISTKOU A OPRAVENÝM KONTRASTOM ---
         if OTAZKA.strip().upper() != "ŽIADNA":
             try:
                 target_dt = datetime.strptime(KONIEC_ANKETY, "%Y-%m-%d")
@@ -228,15 +227,6 @@ try:
                 <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
             </div>""", unsafe_allow_html=True)
 
-            st.divider()
-            st.subheader("📜 Moja história hlasovaní")
-            if not df_h.empty:
-                moje_h = df_h[df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_cist]
-                if not moje_h.empty: 
-                    st.dataframe(moje_h, hide_index=True, use_container_width=True)
-                else:
-                    st.info("Zatiaľ ste v systéme nehlasovali.")
-
     # --- T5: MIESTNY POKEC ---
     with tabs[4]:
         st.subheader("💬 Verejná nástenka odkazov")
@@ -250,6 +240,16 @@ try:
             mail_link = f"mailto:{MAIL_SPRAVCA}?subject={o_subj_encoded}&body={o_body_encoded}"
             st.link_button("✉️ Otvoriť e-mail s týmto textom", mail_link, use_container_width=True)
         
+        # --- MANUÁLNY NÁVOD PRE POKEC ---
+        st.markdown(f"""
+        <div style="background-color:#f0f7ff; padding:15px; border-radius:10px; border:2px solid #007bff; margin-top:15px;">
+            <h4 style="color:#0056b3; margin-top:0;">📩 Manuálny návod pre odkaz</h4>
+            <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
+            Predmet: <b>ODKAZ NA NASTENKU | VS:{u['vs']}</b><br>
+            Obsah: <b>Napíšte text, ktorý chcete zverejniť ostatným susedom.</b></p>
+        </div>
+        """, unsafe_allow_html=True)
+
         st.divider()
         st.subheader("📌 Posledné správy")
         if not df_o.empty:
