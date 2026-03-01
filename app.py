@@ -93,7 +93,7 @@ try:
     df_n = get_df("Nastenka")
     df_o = get_df("Odkazy")
 
-    # LOGIKA ANKETY
+    # Logika skrytia ankety
     je_zadana_otazka = bool(OTAZKA and OTAZKA.strip() != "" and "ŽIADNA" not in OTAZKA.upper())
     anketa_aktivna = False
     dni_do_konca = 0
@@ -170,16 +170,14 @@ try:
             st.dataframe(df_v[show_cols], hide_index=True, use_container_width=True,
                 column_config={"Doklad": st.column_config.LinkColumn("Doklad 🔗", display_text="Otvoriť")})
 
-    # --- T3: MOJE PLATBY + QR KÓD (OPRAVENÝ VS) ---
+    # --- T3: MOJE PLATBY + OPRAVENÝ QR ---
     with tabs[2]:
         st.subheader(f"💰 Moje platby (VS: {u['vs']})")
+        vs_clean = str(u['vs']).strip().zfill(4)
         
-        # Zabezpečíme, aby VS bol vždy 4-miestny reťazec s nulami na začiatku
-        vs_pre_qr = str(u['vs']).strip().zfill(4)
-        
-        vs_p = next((c for c in df_p.columns if "VS" in c.upper()), "VS")
-        df_p[vs_p] = df_p[vs_p].astype(str).str.strip().str.zfill(4)
-        moje_platby = df_p[df_p[vs_p] == vs_pre_qr]
+        vs_p_col = next((c for c in df_p.columns if "VS" in c.upper()), "VS")
+        df_p[vs_p_col] = df_p[vs_p_col].astype(str).str.strip().str.zfill(4)
+        moje_platby = df_p[df_p[vs_p_col] == vs_clean]
 
         if not moje_platby.empty:
             st.dataframe(moje_platby, hide_index=True, use_container_width=True)
@@ -192,23 +190,25 @@ try:
             st.divider()
             if bilancia < 0:
                 nedoplatok = abs(bilancia)
+                suma_str = "{:.2f}".format(nedoplatok)
+                
                 st.markdown(f"""<div style="background-color:#fff5f5; padding:20px; border-radius:12px; border:3px solid #e53e3e; text-align:center; margin-bottom:20px;">
-                    <h3 style="color:#c53030; margin-top:0;">⚠️ Evidujeme nedoplatok: {nedoplatok:.2f} €</h3>
-                    <p style="color:#2d3748;">Naskenujte QR kód pre rýchlu platbu (VS {vs_pre_qr}):</p>
+                    <h3 style="color:#c53030; margin-top:0;">⚠️ Evidujeme nedoplatok: {suma_str} €</h3>
+                    <p style="color:#2d3748; font-weight:bold;">Naskenujte QR kód (VS: {vs_clean})</p>
                 </div>""", unsafe_allow_html=True)
 
-                # OPRAVA: Reťazec pre QR kód s garantovaným VS
-                qr_string = f"SPD*1.0*ACC:{IBAN_FONDU}*AM:{nedoplatok:.2f}*CUR:EUR*VS:{vs_pre_qr}*MSG:Fond Victory Port"
+                # Špeciálny reťazec pre SPD - ŽIADNE MEDZERY OKOLO DVOJBODIEK
+                qr_payload = f"SPD*1.0*ACC:{IBAN_FONDU}*AM:{suma_str}*CUR:EUR*VS:{vs_clean}*MSG:VictoryPort"
                 
-                qr = segno.make(qr_string)
+                qr = segno.make(qr_payload)
                 buff = io.BytesIO()
                 qr.save(buff, kind='png', scale=10)
                 
                 col_q1, col_q2, col_q3 = st.columns([1, 2, 1])
                 with col_q2:
-                    st.image(buff.getvalue(), caption=f"QR Platba: {nedoplatok:.2f} € | VS: {vs_pre_qr}")
+                    st.image(buff.getvalue(), caption=f"QR Platba: {suma_str} € | VS: {vs_clean}")
             else:
-                st.success(f"✅ Platby sú v poriadku. Máte preplatok: {bilancia:.2f} €")
+                st.success(f"✅ Platby sú v poriadku. Preplatok: {bilancia:.2f} €")
 
     # --- T4: ANKETA ---
     with tabs[3]:
@@ -247,18 +247,9 @@ try:
 
                 st.markdown(f"""<div style="background-color:#f0fff4; padding:15px; border-radius:10px; border:2px solid #38a169; margin-top:20px;">
                     <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne hlasovanie</h4>
-                    <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
-                    <b>Predmet ZA:</b> HLAS:ANO | VS:{u['vs']} | {OTAZKA}<br>
-                    <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
+                    <p style="color:#2d3748;">Pošlite e-mail na: <b>{MAIL_SPRAVCA}</b><br>
+                    Predmet: <b>HLAS:ANO | VS:{u['vs']} | {OTAZKA}</b></p>
                 </div>""", unsafe_allow_html=True)
-
-            st.divider()
-            st.subheader("📜 Moja história hlasovaní")
-            if not df_h.empty:
-                v_cist = u['vs'].lstrip('0')
-                c_vs = next((c for c in df_h.columns if "VS" in c.upper()), "VS")
-                moje_h = df_h[df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_cist]
-                if not moje_h.empty: st.dataframe(moje_h, hide_index=True, use_container_width=True)
 
     # --- T5: MIESTNY POKEC ---
     with tabs[4]:
@@ -271,8 +262,7 @@ try:
         
         st.markdown(f"""<div style="background-color:#f0fff4; padding:15px; border-radius:10px; border:2px solid #38a169; margin-top:20px;">
             <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne odoslanie</h4>
-            <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
-            <b>Predmet:</b> ODKAZ NA NÁSTENKU | VS:{u['vs']}</p>
+            <p style="color:#2d3748;">Predmet: <b>ODKAZ NA NÁSTENKU | VS:{u['vs']}</b></p>
         </div>""", unsafe_allow_html=True)
 
         if not df_o.empty:
@@ -285,4 +275,3 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
-
