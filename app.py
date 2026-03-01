@@ -56,13 +56,13 @@ def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
     u_riadok = df_platby[df_platby[vs_p] == vs_uzivatela]
 
     if u_riadok.empty:
-        return 0.0, suma_predpisov, -suma_predpisov
+        return 0.0, round(suma_predpisov, 2), round(-suma_predpisov, 2)
 
     # Vyberieme všetky stĺpce, ktoré obsahujú lomku (01/26, 05/27 atď.)
     stlpce_historie = [c for c in df_platby.columns if "/" in c]
     suma_uhrad = pd.to_numeric(u_riadok.iloc[0][stlpce_historie], errors='coerce').fillna(0).sum()
 
-    return suma_uhrad, suma_predpisov, (suma_uhrad - suma_predpisov)
+    return round(suma_uhrad, 2), round(suma_predpisov, 2), round(suma_uhrad - suma_predpisov, 2)
 
 # ==========================================
 # 2. AUTENTIFIKÁCIA A OVERENIE DLHU
@@ -163,11 +163,11 @@ try:
                 days_left = diff.days + 1
                 if diff.total_seconds() > 0:
                     st.markdown(f"""
-                    <div style="background-color:#fff3cd; padding:15px; border-radius:10px; border-left:5px solid #ffc107; margin-bottom:20px;">
+                    <div style="background-color:#ffeeba; padding:15px; border-radius:10px; border-left:5px solid #ffc107; margin-bottom:20px;">
                         <h4 style="color:#856404; margin-top:0;">🗳️ Prebieha hlasovanie</h4>
-                        <p style="color:#856404; margin-bottom:5px;"><b>Otázka:</b> {OTAZKA}</p>
-                        <p style="color:#d9534f; font-weight:bold; font-size:1.1em; margin-bottom:10px;">⌛ Koniec o: {days_left} dní</p>
-                        <p style="color:#2d3748; font-style: italic; border-top: 1px solid #ffeeba; padding-top: 8px;">👉 Nezabudnite zahlasovať v ankete v záložke <b>Anketa</b>.</p>
+                        <p style="color:#000000; margin-bottom:5px;"><b>Otázka:</b> {OTAZKA}</p>
+                        <p style="color:#bd2130; font-weight:bold; font-size:1.1em; margin-bottom:10px;">⌛ Koniec o: {days_left} dní</p>
+                        <p style="color:#000000; font-style: italic; border-top: 1px solid #dfc27d; padding-top: 8px;">👉 Nezabudnite zahlasovať v ankete v záložke <b>Anketa</b>.</p>
                     </div>
                     """, unsafe_allow_html=True)
             except:
@@ -236,8 +236,8 @@ try:
                 st.markdown(f"""<div style="background-color:#fff5f5; padding:20px; border-radius:12px; border:3px solid #e53e3e; text-align:center;">
                     <h3 style="color:#c53030; margin-top:0;">⚠️ Evidujeme nedoplatok: {abs(bilancia):.2f} €</h3>
                     <p style="color:#2d3748; font-size:1.1em;"><b>Historická bilancia</b></p>
-                    <p style="color:#2d3748;">Suma všetkých predpisov (podľa hárka Konfiguracia): <b>{ocakavane:.2f} €</b>.</p>
-                    <p style="color:#2d3748;">Suma všetkých vašich úhrad (všetky roky): <b>{realne:.2f} €</b>.</p>
+                    <p style="color:#2d3748;">Suma všetkých predpisov: <b>{ocakavane:.2f} €</b>.</p>
+                    <p style="color:#2d3748;">Suma všetkých vašich úhrad: <b>{realne:.2f} €</b>.</p>
                     <p style="color:#c53030; font-weight:bold;">Rozdiel: {bilancia:.2f} €</p>
                 </div>""", unsafe_allow_html=True)
             else:
@@ -261,12 +261,14 @@ try:
             for s_vs in sorted(susedia_vs):
                 _, _, b_sus = vypocitaj_bilanciu(s_vs, df_p, df_k)
                 stav_text = "Preplatok" if b_sus >= 0 else "Nedoplatok"
-                p_data.append({"VS": s_vs, "Stav": stav_text, "Suma (€)": abs(round(b_sus, 2))})
+                # Formátovanie sumy na 2 desatinné miesta ako string pre tabuľku
+                p_data.append({"VS": s_vs, "Stav": stav_text, "Suma (€)": f"{abs(b_sus):.2f}"})
             
             df_blok = pd.DataFrame(p_data)
             
             def styluj_stav(row):
-                bg = 'background-color: #ffc7ce' if row['Stav'] == 'Nedoplatok' else 'background-color: #c6efce'
+                # Tmavšie pozadie a biely text pre maximálny kontrast
+                bg = 'background-color: #441111; color: white;' if row['Stav'] == 'Nedoplatok' else 'background-color: #114411; color: white;'
                 return [bg] * len(row)
 
             st.dataframe(df_blok.style.apply(styluj_stav, axis=1), hide_index=True, use_container_width=True)
