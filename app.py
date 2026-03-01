@@ -10,10 +10,10 @@ from datetime import datetime
 # ==========================================
 MAIL_SPRAVCA = "petermarkuska@gmail.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
-OTAZKA = "ŽIADNA" 
+OTAZKA = "Súhlasíte s jednorazovým vkladom do fondu areálu?" 
 HLAVNE_HESLO = "Victory2026" 
 MESACNY_PREDPIS = 10.0 
-# TU SI ZMEŇ DÁTUM KONCA:
+# TU SI ZMEŇ DÁTUM KONCA (Formát RRRR-MM-DD):
 KONIEC_ANKETY = "2026-03-15"
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
@@ -89,21 +89,22 @@ try:
 
     # --- T1: NÁSTENKA ---
     with tabs[0]:
-        # --- DOPLNENÝ ODPOČET DNÍ ---
-        try:
-            target_dt = datetime.strptime(KONIEC_ANKETY, "%Y-%m-%d")
-            diff = target_dt - datetime.now()
-            days_left = diff.days + 1
-            if diff.total_seconds() > 0:
-                st.markdown(f"""
-                <div style="background-color:#fff3cd; padding:15px; border-radius:10px; border-left:5px solid #ffc107; margin-bottom:20px;">
-                    <h4 style="color:#856404; margin-top:0;">🗳️ Prebieha hlasovanie</h4>
-                    <p style="color:#856404; margin-bottom:5px;"><b>Otázka:</b> {OTAZKA}</p>
-                    <p style="color:#d9534f; font-weight:bold; font-size:1.1em; margin-bottom:0;">⌛ Koniec o: {days_left} dní</p>
-                </div>
-                """, unsafe_allow_html=True)
-        except:
-            pass
+        # --- LOGIKA ODPOČTU S POISTKOU ---
+        if OTAZKA.strip().upper() != "ŽIADNA":
+            try:
+                target_dt = datetime.strptime(KONIEC_ANKETY, "%Y-%m-%d")
+                diff = target_dt - datetime.now()
+                days_left = diff.days + 1
+                if diff.total_seconds() > 0:
+                    st.markdown(f"""
+                    <div style="background-color:#fff3cd; padding:15px; border-radius:10px; border-left:5px solid #ffc107; margin-bottom:20px;">
+                        <h4 style="color:#856404; margin-top:0;">🗳️ Prebieha hlasovanie</h4>
+                        <p style="color:#856404; margin-bottom:5px;"><b>Otázka:</b> {OTAZKA}</p>
+                        <p style="color:#d9534f; font-weight:bold; font-size:1.1em; margin-bottom:0;">⌛ Koniec o: {days_left} dní</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+            except:
+                pass
 
         st.subheader("📢 Aktuálne oznamy")
         if not df_n.empty: st.table(df_n.iloc[::-1])
@@ -182,55 +183,58 @@ try:
                     <p style="color:#2f855a; font-weight:bold;">Máte preplatok: {bilancia:.2f} €</p>
                 </div>""", unsafe_allow_html=True)
 
-    # --- T4: ANKETA (S VÝSLEDKAMI) ---
+    # --- T4: ANKETA ---
     with tabs[3]:
-        st.subheader(f"🗳️ {OTAZKA}")
-        if not df_h.empty:
-            c_hl = next((c for c in df_h.columns if "HLAS" in c.upper()), "Hlas")
-            c_ot_all = next((c for c in df_h.columns if "OTAZKA" in str(c).upper().replace("Á","A")), "Otázka")
-            df_current_h = df_h[df_h[c_ot_all].astype(str).str.strip() == OTAZKA.strip()]
-            pocet_za = len(df_current_h[df_current_h[c_hl].astype(str).str.upper().str.contains("ANO|ZA")])
-            pocet_proti = len(df_current_h[df_current_h[c_hl].astype(str).str.upper().str.contains("NIE|PROTI")])
-            st.write("### Aktuálny stav hlasovania")
-            s1, s2, s3 = st.columns(3)
-            s1.metric("ZA 👍", f"{pocet_za}")
-            s2.metric("PROTI 👎", f"{pocet_proti}")
-            s3.metric("Spolu", f"{pocet_za + pocet_proti}")
-
-        st.divider()
-        v_cist = u['vs'].lstrip('0')
-        c_vs = next((c for c in df_h.columns if "VS" in c.upper()), "VS")
-        c_ot = next((c for c in df_h.columns if "OTAZKA" in str(c).upper().replace("Á","A")), "Otázka")
-
-        uz_hlasoval = False
-        if not df_h.empty and c_ot in df_h.columns:
-            mask = (df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_cist) & (df_h[c_ot].astype(str).str.strip() == OTAZKA.strip())
-            uz_hlasoval = any(mask)
-
-        if uz_hlasoval:
-            st.success("✅ Váš hlas k tejto téme bol už prijatý.")
+        if OTAZKA.strip().upper() == "ŽIADNA":
+            st.info("Momentálne neprebieha žiadne hlasovanie.")
         else:
-            s_za = urllib.parse.quote(f"HLAS:ANO | VS:{u['vs']} | {OTAZKA}")
-            s_ni = urllib.parse.quote(f"HLAS:NIE | VS:{u['vs']} | {OTAZKA}")
-            b1, b2 = st.columns(2)
-            b1.link_button("👍 ZA", f"mailto:{MAIL_SPRAVCA}?subject={s_za}", use_container_width=True)
-            b2.link_button("👎 PROTI", f"mailto:{MAIL_SPRAVCA}?subject={s_ni}", use_container_width=True)
+            st.subheader(f"🗳️ {OTAZKA}")
+            if not df_h.empty:
+                c_hl = next((c for c in df_h.columns if "HLAS" in c.upper()), "Hlas")
+                c_ot_all = next((c for c in df_h.columns if "OTAZKA" in str(c).upper().replace("Á","A")), "Otázka")
+                df_current_h = df_h[df_h[c_ot_all].astype(str).str.strip() == OTAZKA.strip()]
+                pocet_za = len(df_current_h[df_current_h[c_hl].astype(str).str.upper().str.contains("ANO|ZA")])
+                pocet_proti = len(df_current_h[df_current_h[c_hl].astype(str).str.upper().str.contains("NIE|PROTI")])
+                st.write("### Aktuálny stav hlasovania")
+                s1, s2, s3 = st.columns(3)
+                s1.metric("ZA 👍", f"{pocet_za}")
+                s2.metric("PROTI 👎", f"{pocet_proti}")
+                s3.metric("Spolu", f"{pocet_za + pocet_proti}")
 
-        st.markdown(f"""<div style="background-color:#f0fff4; padding:15px; border-radius:10px; border:2px solid #38a169; margin-top:20px;">
-            <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne hlasovanie</h4>
-            <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
-            <b>Predmet ZA:</b> HLAS:ANO | VS:{u['vs']} | {OTAZKA}<br>
-            <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
-        </div>""", unsafe_allow_html=True)
+            st.divider()
+            v_cist = u['vs'].lstrip('0')
+            c_vs = next((c for c in df_h.columns if "VS" in c.upper()), "VS")
+            c_ot = next((c for c in df_h.columns if "OTAZKA" in str(c).upper().replace("Á","A")), "Otázka")
 
-        st.divider()
-        st.subheader("📜 Moja história hlasovaní")
-        if not df_h.empty:
-            moje_h = df_h[df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_cist]
-            if not moje_h.empty: 
-                st.dataframe(moje_h, hide_index=True, use_container_width=True)
+            uz_hlasoval = False
+            if not df_h.empty and c_ot in df_h.columns:
+                mask = (df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_cist) & (df_h[c_ot].astype(str).str.strip() == OTAZKA.strip())
+                uz_hlasoval = any(mask)
+
+            if uz_hlasoval:
+                st.success("✅ Váš hlas k tejto téme bol už prijatý.")
             else:
-                st.info("Zatiaľ ste v systéme nehlasovali.")
+                s_za = urllib.parse.quote(f"HLAS:ANO | VS:{u['vs']} | {OTAZKA}")
+                s_ni = urllib.parse.quote(f"HLAS:NIE | VS:{u['vs']} | {OTAZKA}")
+                b1, b2 = st.columns(2)
+                b1.link_button("👍 ZA", f"mailto:{MAIL_SPRAVCA}?subject={s_za}", use_container_width=True)
+                b2.link_button("👎 PROTI", f"mailto:{MAIL_SPRAVCA}?subject={s_ni}", use_container_width=True)
+
+            st.markdown(f"""<div style="background-color:#f0fff4; padding:15px; border-radius:10px; border:2px solid #38a169; margin-top:20px;">
+                <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne hlasovanie</h4>
+                <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
+                <b>Predmet ZA:</b> HLAS:ANO | VS:{u['vs']} | {OTAZKA}<br>
+                <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
+            </div>""", unsafe_allow_html=True)
+
+            st.divider()
+            st.subheader("📜 Moja história hlasovaní")
+            if not df_h.empty:
+                moje_h = df_h[df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_cist]
+                if not moje_h.empty: 
+                    st.dataframe(moje_h, hide_index=True, use_container_width=True)
+                else:
+                    st.info("Zatiaľ ste v systéme nehlasovali.")
 
     # --- T5: MIESTNY POKEC ---
     with tabs[4]:
@@ -259,4 +263,3 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
-
