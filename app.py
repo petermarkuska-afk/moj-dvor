@@ -248,41 +248,42 @@ try:
                     <p style="color:#2f855a; font-weight:bold;">Máte preplatok: {bilancia:.2f} €</p>
                 </div>""", unsafe_allow_html=True)
 
-        # --- DOPLNOK PRE ZÁSTUPCU (PREHĽAD BLOKU) ---
-        # 1. Najprv zistíme, či má užívateľ v Adresári v stĺpci 'Poznámka' napísané 'Zástupca'
+       # --- DOPLNOK PRE ZÁSTUPCU (PREHĽAD BLOKU) ---
+        # Kontrola prebieha DYNAMICKY podľa stĺpca 'Rola' v hárku Adresar
         je_zastupca_v_tabulke = False
         df_a = get_df("Adresar")
+        
         if not df_a.empty:
             vs_col_a = next((c for c in df_a.columns if "VS" in c.upper()), "VS")
-            # Hľadáme stĺpec s poznámkou/rolou
-            poznamka_col = next((c for c in df_a.columns if "POZNÁMKA" in c.upper().replace("Á","A") or "ROLA" in c.upper()), None)
+            # Podľa tvojho screenshotu sa stĺpec volá 'Rola'
+            rola_col = next((c for c in df_a.columns if "ROLA" in c.upper()), None)
             
-            if poznamka_col:
+            if rola_col:
+                # Očistíme VS a porovnáme s prihláseným užívateľom
                 u_row = df_a[df_a[vs_col_a].astype(str).str.strip().str.zfill(4) == u['vs']]
                 if not u_row.empty:
-                    if "ZASTUPCA" in str(u_row.iloc[0][poznamka_col]).upper():
+                    hodnota_roly = str(u_row.iloc[0][rola_col]).upper().strip()
+                    # Ak je bunka prázdna (ako na screenshote), podmienka nebude splnená
+                    if "ZASTUPCA" in hodnota_roly:
                         je_zastupca_v_tabulke = True
 
-        # 2. Tabuľka sa zobrazí, len ak je v zozname ALEBO má príznak v tabuľke
-        if u['vs'] in ZASTUPCOVIA or je_zastupca_v_tabulke:
+        # Tabuľka sa zobrazí LEN ak má užívateľ v tabuľke napísané "Zastupca"
+        if je_zastupca_v_tabulke:
             st.divider()
             pref = u['vs'][:2]
             st.subheader(f"📊 Prehľad susedov (Blok {pref}xx)")
             
-            # Získame unikátne VS z hárka platieb, ktoré patria do bloku
             susedia_vs = [v for v in df_p[vs_p].unique() if str(v).startswith(pref)]
             
             p_data = []
             for s_vs in sorted(susedia_vs):
                 _, _, b_sus = vypocitaj_bilanciu(s_vs, df_p, df_k)
                 stav_text = "Preplatok" if b_sus >= 0 else "Nedoplatok"
-                # Formátovanie sumy na 2 desatinné miesta ako string pre tabuľku
                 p_data.append({"VS": s_vs, "Stav": stav_text, "Suma (€)": f"{abs(b_sus):.2f}"})
             
             df_blok = pd.DataFrame(p_data)
             
             def styluj_stav(row):
-                # Tmavšie pozadie a biely text pre maximálny kontrast
                 bg = 'background-color: #441111; color: white;' if row['Stav'] == 'Nedoplatok' else 'background-color: #114411; color: white;'
                 return [bg] * len(row)
 
@@ -383,4 +384,5 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
 
