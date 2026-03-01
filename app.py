@@ -12,7 +12,7 @@ MAIL_SPRAVCA = "petermarkuska@gmail.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
 
 # SEM ZADAJTE NOVÚ OTÁZKU (Ak napíšete "" alebo "Žiadna", modul ankety zmizne)
-OTAZKA = "Súhlasíte s jednorazovým vkladom do fondu areálu?" 
+OTAZKA = "ŽIADNA ANKETA" 
 # SEM ZADAJTE DÁTUM VYHLÁSENIA ANKETY (formát: RRRR-MM-DD)
 DATUM_VYHLASENIA = "2026-03-01" 
 
@@ -276,3 +276,4 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
