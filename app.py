@@ -21,7 +21,7 @@ KONIEC_ANKETY = "2026-03-05"
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
 
-# --- VLOŽENÝ MODUL PRE POZADIE ---
+# --- MODUL PRE POZADIE A DIZAJN (ČIERNY STRED + OPRAVA FARIEB) ---
 def apply_custom_design():
     script_directory = os.path.dirname(__file__)
     img_path = os.path.join(script_directory, "image_5.png")
@@ -32,29 +32,56 @@ def apply_custom_design():
     
     st.markdown(f"""
         <style>
+        /* Pozadie celej aplikácie */
         .stApp {{
-            background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), 
+            background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), 
                               url("data:image/png;base64,{img_base64}");
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
         }}
+        /* Stredový panel - ČIERNY */
         .main .block-container {{
-            background-color: #0e1117 !important;
+            background-color: #000000 !important;
             max-width: 850px !important;
             padding: 40px !important;
             margin: 50px auto !important;
             border-radius: 20px;
             box-shadow: 0 10px 50px rgba(0,0,0,1);
+        }}
+        /* Základná farba textu v čiernom paneli na bielo */
+        .main .block-container p, 
+        .main .block-container h1, 
+        .main .block-container h2, 
+        .main .block-container h3, 
+        .main .block-container h4,
+        .main .block-container span,
+        .main .block-container label {{
             color: white !important;
         }}
-        h1, h2, h3, h4, p, span, label, li {{ color: white !important; }}
+        /* OPRAVA: Texty v info/warning/success boxoch (st.markdown divy s pozadím) */
+        /* Tieto musia zostať čierne, inak sú na žltom/červenom/zelenom nečitateľné */
+        div[style*="background-color"] {{
+            color: #000000 !important;
+        }}
+        div[style*="background-color"] p, 
+        div[style*="background-color"] h1, 
+        div[style*="background-color"] h2, 
+        div[style*="background-color"] h3, 
+        div[style*="background-color"] h4, 
+        div[style*="background-color"] b,
+        div[style*="background-color"] li {{
+            color: #000000 !important;
+        }}
         header {{ visibility: hidden; }}
         </style>
     """, unsafe_allow_html=True)
 
 apply_custom_design()
-# --- KONIEC MODULU ---
+
+# ==========================================
+# POMOCNÉ FUNKCIE (BEZ SKRACOVANIA)
+# ==========================================
 
 def get_df(sheet):
     try:
@@ -116,7 +143,8 @@ if not st.session_state["auth_pass"]:
         if heslo_vstup == HLAVNE_HESLO:
             st.session_state["auth_pass"] = True
             st.rerun()
-        else: st.error("Nesprávne heslo!")
+        else: 
+            st.error("Nesprávne heslo!")
     st.stop()
 
 # Krok 2: VS Identifikácia
@@ -138,7 +166,8 @@ if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
                         "email": str(user_row.iloc[0].get("Email", "Neuvedený"))
                     }
                     st.rerun()
-                else: st.error(f"VS {target_vs} nenájdený.")
+                else: 
+                    st.error(f"VS {target_vs} nenájdený.")
     st.stop()
 
 # Krok 3: Kontrola nedoplatku (Interstitial)
