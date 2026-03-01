@@ -19,61 +19,6 @@ KONIEC_ANKETY = "2026-03-05"
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
 
-# ==========================================
-# OPRAVENÝ MODUL PRE MAXIMÁLNU ČITATEĽNOSŤ
-# ==========================================
-def apply_readable_background():
-    img_url = "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?q=80&w=2070&auto=format&fit=crop"
-    
-    st.markdown(
-        f"""
-        <style>
-        /* Hlavné pozadie celej aplikácie */
-        .stApp {{
-            background: url("{img_url}");
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-        }}
-
-        /* Vytvorenie bieleho "papiera" pre obsah - toto opraví čitateľnosť */
-        .main .block-container {{
-            background-color: rgba(255, 255, 255, 0.95); /* Takmer úplne biela */
-            padding: 40px !important;
-            border-radius: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            margin-top: 20px;
-            margin-bottom: 20px;
-        }}
-
-        /* Zabezpečenie, aby tabuľky a texty boli čierne a ostré */
-        h1, h2, h3, p, span, label {{
-            color: #1a202c !important;
-        }}
-        
-        /* Úprava tabuliek pre lepší kontrast */
-        .stDataFrame, .stTable {{
-            background-color: white !important;
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-        }}
-
-        /* Odstránenie priesvitnosti z kariet s metrikami */
-        [data-testid="stMetricValue"] {{
-            color: #2d3748 !important;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-apply_readable_background()
-# ==========================================
-
-# Aktivácia pozadia
-apply_custom_background()
-# ==========================================
-
 def get_df(sheet):
     try:
         cache_bust = int(time.time())
@@ -439,7 +384,5 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
-
-
 
 
