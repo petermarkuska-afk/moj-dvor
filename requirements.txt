@@ -2,4 +2,6 @@ streamlit
 pandas
 gspread
 plotly
-mypaybysquare
+plaintext
+segno
+
