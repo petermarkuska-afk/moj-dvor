@@ -12,7 +12,8 @@ MAIL_SPRAVCA = "petermarkuska@gmail.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
 OTAZKA = "Postavíme heliport?" 
 HLAVNE_HESLO = "Victory2026" 
-# MESACNY_PREDPIS sa už nepoužíva fixne, berie sa z hárka Konfiguracia
+# KONFIGURÁCIA ZÁSTUPCOV (VS, ktorí uvidia prehľad svojho bloku)
+ZASTUPCOVIA = ["1007", "1105", "1201"] 
 # TU SI ZMEŇ DÁTUM KONCA (Formát RRRR-MM-DD):
 KONIEC_ANKETY = "2026-03-05"
 
@@ -246,6 +247,30 @@ try:
                     <p style="color:#2d3748;">Vaše celkové úhrady v systéme: <b>{realne:.2f} €</b>.</p>
                     <p style="color:#2f855a; font-weight:bold;">Máte preplatok: {bilancia:.2f} €</p>
                 </div>""", unsafe_allow_html=True)
+
+        # --- DOPLNOK PRE ZÁSTUPCU (PREHĽAD BLOKU) ---
+        if u['vs'] in ZASTUPCOVIA:
+            st.divider()
+            pref = u['vs'][:2]
+            st.subheader(f"📊 Prehľad susedov (Blok {pref}xx)")
+            
+            # Získame unikátne VS z hárka platieb, ktoré patria do bloku
+            susedia_vs = [v for v in df_p[vs_p].unique() if str(v).startswith(pref)]
+            
+            p_data = []
+            for s_vs in sorted(susedia_vs):
+                _, _, b_sus = vypocitaj_bilanciu(s_vs, df_p, df_k)
+                stav_text = "Preplatok" if b_sus >= 0 else "Nedoplatok"
+                p_data.append({"VS": s_vs, "Stav": stav_text, "Suma (€)": abs(round(b_sus, 2))})
+            
+            df_blok = pd.DataFrame(p_data)
+            
+            def styluj_stav(row):
+                bg = 'background-color: #ffc7ce' if row['Stav'] == 'Nedoplatok' else 'background-color: #c6efce'
+                return [bg] * len(row)
+
+            st.dataframe(df_blok.style.apply(styluj_stav, axis=1), hide_index=True, use_container_width=True)
+            st.caption("Červená = Nedoplatok | Zelená = Vyrovnané/Preplatok")
 
     # --- T4: ANKETA ---
     with tabs[3]:
