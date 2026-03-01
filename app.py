@@ -281,4 +281,4 @@ try:
 except Exception as e:
     st.error(f"Systémová chyba pri načítaní dát: {e}")
 
-st.markdown("<p style='text-align: center; color: gray; margin-top: 50px;'>© 2026 Správa
+st.markdown("<p style='text-align: center; color: gray; margin-top: 50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
