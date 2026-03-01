@@ -21,6 +21,22 @@ IBAN_SPRAVCA = "SK2083300000002001913863"  # sem daj reálny IBAN bez medzier
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
 
+def generate_qr_payment(iban, suma, vs, sprava="Platba nedoplatku"):
+    iban_clean = iban.replace(" ", "")
+    amount = f"{suma:.2f}"
+    
+    payload = f"SPD*1.0*ACC:{iban_clean}*AM:{amount}*CC:EUR*X-VS:{vs}*MSG:{sprava}"
+    
+    qr = qrcode.QRCode(box_size=6, border=2)
+    qr.add_data(payload)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    buf = BytesIO()
+    img.save(buf)
+    buf.seek(0)
+    return buf
+
 def get_df(sheet):
     try:
         cache_bust = int(time.time())
@@ -267,5 +283,6 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
 
 
