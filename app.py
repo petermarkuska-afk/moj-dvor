@@ -19,6 +19,52 @@ KONIEC_ANKETY = "2026-03-05"
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
 
+def apply_sidebar_bg():
+    import base64
+    def get_base64(bin_file):
+        with open(bin_file, 'rb') as f:
+            return base64.b64encode(f.read()).decode()
+    
+    # Použijeme tvoj obrázok
+    img_data = get_base64("image_5.png")
+
+    st.markdown(
+        f"""
+        <style>
+        /* 1. Obrázok na pozadie celého okna */
+        .stApp {{
+            background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), 
+                              url("data:image/png;base64,{img_data}");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }}
+
+        /* 2. STRED ostane čierny a čistý */
+        .main .block-container {{
+            background-color: #0e1117; /* Čierna farba Streamlitu */
+            max-width: 900px !important;
+            padding: 40px !important;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            border-radius: 15px;
+            box-shadow: 0 0 50px rgba(0,0,0,1); /* Tieň, aby stred "vystúpil" */
+        }}
+
+        /* 3. Oprava pre mobilné zariadenia (na mobile pozadie zmizne, ostane len čierna) */
+        @media (max-width: 900px) {{
+            .main .block-container {{
+                margin: 0 !important;
+                border-radius: 0 !important;
+            }}
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+apply_sidebar_bg()
+
 def get_df(sheet):
     try:
         cache_bust = int(time.time())
@@ -384,5 +430,6 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
 
 
