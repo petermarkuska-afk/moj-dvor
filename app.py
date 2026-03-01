@@ -12,8 +12,6 @@ MAIL_SPRAVCA = "petermarkuska@gmail.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
 OTAZKA = "Postavíme heliport?" 
 HLAVNE_HESLO = "Victory2026" 
-# KONFIGURÁCIA ZÁSTUPCOV (VS, ktorí uvidia prehľad svojho bloku)
-ZASTUPCOVIA = ["1007", "1105", "1201"] 
 # TU SI ZMEŇ DÁTUM KONCA (Formát RRRR-MM-DD):
 KONIEC_ANKETY = "2026-03-05"
 
@@ -249,25 +247,21 @@ try:
                 </div>""", unsafe_allow_html=True)
 
        # --- DOPLNOK PRE ZÁSTUPCU (PREHĽAD BLOKU) ---
-        # Kontrola prebieha DYNAMICKY podľa stĺpca 'Rola' v hárku Adresar
+        # Logika je plne dynamická podľa stĺpca 'Rola' v hárku Adresar
         je_zastupca_v_tabulke = False
         df_a = get_df("Adresar")
         
         if not df_a.empty:
             vs_col_a = next((c for c in df_a.columns if "VS" in c.upper()), "VS")
-            # Podľa tvojho screenshotu sa stĺpec volá 'Rola'
             rola_col = next((c for c in df_a.columns if "ROLA" in c.upper()), None)
             
             if rola_col:
-                # Očistíme VS a porovnáme s prihláseným užívateľom
                 u_row = df_a[df_a[vs_col_a].astype(str).str.strip().str.zfill(4) == u['vs']]
                 if not u_row.empty:
                     hodnota_roly = str(u_row.iloc[0][rola_col]).upper().strip()
-                    # Ak je bunka prázdna (ako na screenshote), podmienka nebude splnená
                     if "ZASTUPCA" in hodnota_roly:
                         je_zastupca_v_tabulke = True
 
-        # Tabuľka sa zobrazí LEN ak má užívateľ v tabuľke napísané "Zastupca"
         if je_zastupca_v_tabulke:
             st.divider()
             pref = u['vs'][:2]
@@ -334,7 +328,6 @@ try:
                 <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
             </div>""", unsafe_allow_html=True)
 
-        # --- TU JE DOPLNENÁ HISTÓRIA HLASOVANÍ ---
         st.divider()
         st.subheader("📜 História mojich hlasovaní")
         if not df_h.empty:
@@ -384,5 +377,3 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
-
-
