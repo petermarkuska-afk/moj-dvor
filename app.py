@@ -3,8 +3,6 @@ import pandas as pd
 import plotly.express as px
 import urllib.parse
 import time
-import os
-import base64
 from datetime import datetime
 
 # ==========================================
@@ -20,68 +18,6 @@ ZASTUPCOVIA = ["1007", "1105", "1201"]
 KONIEC_ANKETY = "2026-03-05"
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
-
-# --- MODUL PRE POZADIE A DIZAJN (ČIERNY STRED + OPRAVA FARIEB) ---
-def apply_custom_design():
-    script_directory = os.path.dirname(__file__)
-    img_path = os.path.join(script_directory, "image_5.png")
-    img_base64 = ""
-    if os.path.exists(img_path):
-        with open(img_path, "rb") as f:
-            img_base64 = base64.b64encode(f.read()).decode()
-    
-    st.markdown(f"""
-        <style>
-        /* Pozadie celej aplikácie */
-        .stApp {{
-            background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), 
-                              url("data:image/png;base64,{img_base64}");
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-        }}
-        /* Stredový panel - ČIERNY */
-        .main .block-container {{
-            background-color: #000000 !important;
-            max-width: 850px !important;
-            padding: 40px !important;
-            margin: 50px auto !important;
-            border-radius: 20px;
-            box-shadow: 0 10px 50px rgba(0,0,0,1);
-        }}
-        /* Základná farba textu v čiernom paneli na bielo */
-        .main .block-container p, 
-        .main .block-container h1, 
-        .main .block-container h2, 
-        .main .block-container h3, 
-        .main .block-container h4,
-        .main .block-container span,
-        .main .block-container label {{
-            color: white !important;
-        }}
-        /* OPRAVA: Texty v info/warning/success boxoch (st.markdown divy s pozadím) */
-        /* Tieto musia zostať čierne, inak sú na žltom/červenom/zelenom nečitateľné */
-        div[style*="background-color"] {{
-            color: #000000 !important;
-        }}
-        div[style*="background-color"] p, 
-        div[style*="background-color"] h1, 
-        div[style*="background-color"] h2, 
-        div[style*="background-color"] h3, 
-        div[style*="background-color"] h4, 
-        div[style*="background-color"] b,
-        div[style*="background-color"] li {{
-            color: #000000 !important;
-        }}
-        header {{ visibility: hidden; }}
-        </style>
-    """, unsafe_allow_html=True)
-
-apply_custom_design()
-
-# ==========================================
-# POMOCNÉ FUNKCIE (BEZ SKRACOVANIA)
-# ==========================================
 
 def get_df(sheet):
     try:
@@ -143,8 +79,7 @@ if not st.session_state["auth_pass"]:
         if heslo_vstup == HLAVNE_HESLO:
             st.session_state["auth_pass"] = True
             st.rerun()
-        else: 
-            st.error("Nesprávne heslo!")
+        else: st.error("Nesprávne heslo!")
     st.stop()
 
 # Krok 2: VS Identifikácia
@@ -166,8 +101,7 @@ if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
                         "email": str(user_row.iloc[0].get("Email", "Neuvedený"))
                     }
                     st.rerun()
-                else: 
-                    st.error(f"VS {target_vs} nenájdený.")
+                else: st.error(f"VS {target_vs} nenájdený.")
     st.stop()
 
 # Krok 3: Kontrola nedoplatku (Interstitial)
@@ -315,20 +249,25 @@ try:
                 </div>""", unsafe_allow_html=True)
 
        # --- DOPLNOK PRE ZÁSTUPCU (PREHĽAD BLOKU) ---
+        # Kontrola prebieha DYNAMICKY podľa stĺpca 'Rola' v hárku Adresar
         je_zastupca_v_tabulke = False
         df_a = get_df("Adresar")
         
         if not df_a.empty:
             vs_col_a = next((c for c in df_a.columns if "VS" in c.upper()), "VS")
+            # Podľa tvojho screenshotu sa stĺpec volá 'Rola'
             rola_col = next((c for c in df_a.columns if "ROLA" in c.upper()), None)
             
             if rola_col:
+                # Očistíme VS a porovnáme s prihláseným užívateľom
                 u_row = df_a[df_a[vs_col_a].astype(str).str.strip().str.zfill(4) == u['vs']]
                 if not u_row.empty:
                     hodnota_roly = str(u_row.iloc[0][rola_col]).upper().strip()
+                    # Ak je bunka prázdna (ako na screenshote), podmienka nebude splnená
                     if "ZASTUPCA" in hodnota_roly:
                         je_zastupca_v_tabulke = True
 
+        # Tabuľka sa zobrazí LEN ak má užívateľ v tabuľke napísané "Zastupca"
         if je_zastupca_v_tabulke:
             st.divider()
             pref = u['vs'][:2]
@@ -395,6 +334,7 @@ try:
                 <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
             </div>""", unsafe_allow_html=True)
 
+        # --- TU JE DOPLNENÁ HISTÓRIA HLASOVANÍ ---
         st.divider()
         st.subheader("📜 História mojich hlasovaní")
         if not df_h.empty:
@@ -444,3 +384,5 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
+
