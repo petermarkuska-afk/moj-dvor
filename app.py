@@ -19,6 +19,46 @@ KONIEC_ANKETY = "2026-03-05"
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
 
+# ==========================================
+# MODUL PRE POZADIE PORTÁLU
+# ==========================================
+def apply_custom_background():
+    # Odkaz na vybraný obrázok modernej architektúry
+    img_url = "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?q=80&w=2070&auto=format&fit=crop"
+    
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            /* Kombinácia bieleho závoja (0.85 priehľadnosť) a obrázka */
+            background: linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)), 
+                        url("{img_url}");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }}
+
+        /* Zjemnenie bielych kontajnerov, aby ladili s pozadím */
+        .stTabs, .stTable, .stDataFrame {{
+            background-color: rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            padding: 5px;
+        }}
+        
+        /* Úprava hlavičky, aby bola výraznejšia */
+        h1 {{
+            color: #1e3a8a !important; /* Tmavomodrá Victory Port farba */
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+# Aktivácia pozadia
+apply_custom_background()
+# ==========================================
+
 def get_df(sheet):
     try:
         cache_bust = int(time.time())
@@ -384,5 +424,6 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
 
 
