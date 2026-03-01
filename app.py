@@ -17,6 +17,7 @@ HLAVNE_HESLO = "Victory2026"
 MESACNY_PREDPIS = 10.0 
 # TU SI ZMEŇ DÁTUM KONCA (Formát RRRR-MM-DD):
 KONIEC_ANKETY = "2026-03-15"
+IBAN_SPRAVCA = "SK2083300000002001913863"  # sem daj reálny IBAN bez medzier
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
 
@@ -266,4 +267,5 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
 
