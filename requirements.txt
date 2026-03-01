@@ -1,7 +1,5 @@
-streamlit
 pandas
-gspread
 plotly
-plaintext
 segno
+
 
