@@ -3,34 +3,20 @@ import pandas as pd
 import plotly.express as px
 import urllib.parse
 import time
-import io
-import segno
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # ==========================================
 # 1. KONFIGURÁCIA PORTÁLU
 # ==========================================
 MAIL_SPRAVCA = "petermarkuska@gmail.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
-IBAN_FONDU = "SK0000000000000000000000" # SEM DOPLŇTE REÁLNY IBAN PRE QR KÓD
-
 OTAZKA = "Súhlasíte s jednorazovým vkladom do fondu areálu?" 
-DATUM_VYHLASENIA = "2026-03-01" 
 HLAVNE_HESLO = "Victory2026" 
 MESACNY_PREDPIS = 10.0 
+# SEM ZADAJTE DÁTUM KONCA ANKETY:
+DATUM_KONCA_ANKETY = "2026-03-10" 
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
-
-# Pomocná funkcia pre odpočet ankety
-def ziskaj_odpocet(start_date_str):
-    try:
-        start_dt = datetime.strptime(start_date_str, "%Y-%m-%d")
-        koniec_dt = start_dt + timedelta(days=10)
-        teraz = datetime.now()
-        zostava = koniec_dt - teraz
-        return zostava, koniec_dt
-    except:
-        return timedelta(0), datetime.now()
 
 def get_df(sheet):
     try:
@@ -90,9 +76,12 @@ try:
     df_n = get_df("Nastenka")
     df_o = get_df("Odkazy")
 
-    # Výpočet ankety
-    zostava, koniec_dt = ziskaj_odpocet(DATUM_VYHLASENIA)
-    anketa_aktivna = zostava.total_seconds() > 0
+    # --- LOGIKA ODPOČTU ---
+    koniec_dt = datetime.strptime(DATUM_KONCA_ANKETY, "%Y-%m-%d")
+    teraz = datetime.now()
+    rozdiel = koniec_dt - teraz
+    dni_zostava = rozdiel.days + 1
+    anketa_bezi = rozdiel.total_seconds() > 0
 
     st.markdown(f"<h1 style='text-align: center;'>Vitaj, {u['meno']} 👋</h1>", unsafe_allow_html=True)
     
@@ -107,12 +96,15 @@ try:
 
     # --- T1: NÁSTENKA ---
     with tabs[0]:
-        if anketa_aktivna:
-             st.markdown(f"""<div style="background-color:#fff3cd; padding:20px; border-radius:15px; border-left:8px solid #ffc107; margin-bottom:25px;">
-                <h3 style="color:#856404; margin-top:0;">🗳️ Prebieha hlasovanie!</h3>
-                <p style="font-size:1.1em; color:#856404;"><b>Otázka:</b> {OTAZKA}</p>
-                <p style="font-size:1.2em; font-weight:bold; color:#d9534f; margin-bottom:0;">⌛ Koniec o: {zostava.days} dní ({koniec_dt.strftime('%d.%m.%Y')})</p>
-            </div>""", unsafe_allow_html=True)
+        # Zobrazenie odpočtu na nástenke, ak anketa ešte prebieha
+        if anketa_bezi:
+            st.markdown(f"""
+            <div style="background-color:#fff3cd; padding:15px; border-radius:10px; border-left:5px solid #ffc107; margin-bottom:20px;">
+                <h4 style="color:#856404; margin-top:0;">🗳️ Prebieha hlasovanie</h4>
+                <p style="color:#856404; margin-bottom:5px;"><b>Otázka:</b> {OTAZKA}</p>
+                <p style="color:#d9534f; font-weight:bold; font-size:1.1em;">⏳ Koniec o: {dni_zostava} dní</p>
+            </div>
+            """, unsafe_allow_html=True)
 
         st.subheader("📢 Aktuálne oznamy")
         if not df_n.empty: st.table(df_n.iloc[::-1])
@@ -159,7 +151,7 @@ try:
             st.dataframe(df_v[show_cols], hide_index=True, use_container_width=True,
                 column_config={"Doklad": st.column_config.LinkColumn("Doklad 🔗", display_text="Otvoriť")})
 
-    # --- T3: MOJE PLATBY + QR ---
+    # --- T3: MOJE PLATBY ---
     with tabs[2]:
         st.subheader(f"💰 Moje platby (VS: {u['vs']})")
         vs_p = next((c for c in df_p.columns if "VS" in c.upper()), "VS")
@@ -176,25 +168,13 @@ try:
 
             st.divider()
             if bilancia < 0:
-                nedoplatok = abs(bilancia)
-                suma_str = "{:.2f}".format(nedoplatok)
                 st.markdown(f"""<div style="background-color:#fff5f5; padding:20px; border-radius:12px; border:3px solid #e53e3e; text-align:center;">
-                    <h3 style="color:#c53030; margin-top:0;">⚠️ Evidujeme nedoplatok: {nedoplatok:.2f} €</h3>
+                    <h3 style="color:#c53030; margin-top:0;">⚠️ Evidujeme nedoplatok: {abs(bilancia):.2f} €</h3>
                     <p style="color:#2d3748; font-size:1.1em;"><b>Ako sme k tomu prišli?</b></p>
                     <p style="color:#2d3748;">K dnešnému dňu (mesiac {t.month}/2026) má byť podľa predpisu (10 € / mesiac) uhradených spolu: <b>{ocakavane:.2f} €</b>.</p>
                     <p style="color:#2d3748;">Vaša celková suma pripísaných úhrad v systéme je: <b>{realne:.2f} €</b>.</p>
                     <p style="color:#c53030; font-weight:bold;">Rozdiel: {realne:.2f} € - {ocakavane:.2f} € = {bilancia:.2f} €</p>
                 </div>""", unsafe_allow_html=True)
-                
-                # GENERÁTOR QR KÓDU
-                qr_payload = f"SPD*1.0*ACC:{IBAN_FONDU}*AM:{suma_str}*CUR:EUR*VS:{u['vs']}*MSG:VictoryPort"
-                qr = segno.make(qr_payload)
-                buff = io.BytesIO()
-                qr.save(buff, kind='png', scale=10)
-                
-                cq1, cq2, cq3 = st.columns([1, 1.5, 1])
-                with cq2:
-                    st.image(buff.getvalue(), caption=f"QR Platba: {suma_str} € (VS: {u['vs']})", use_container_width=True)
             else:
                 st.markdown(f"""<div style="background-color:#f0fff4; padding:20px; border-radius:12px; border:3px solid #38a169; text-align:center;">
                     <h3 style="color:#2f855a; margin-top:0;">✅ Platby sú v poriadku</h3>
@@ -203,7 +183,7 @@ try:
                     <p style="color:#2f855a; font-weight:bold;">Máte preplatok: {bilancia:.2f} €</p>
                 </div>""", unsafe_allow_html=True)
 
-    # --- T4: ANKETA (S VÝSLEDKAMI) ---
+    # --- T4: ANKETA ---
     with tabs[3]:
         st.subheader(f"🗳️ {OTAZKA}")
         if not df_h.empty:
@@ -212,6 +192,7 @@ try:
             df_current_h = df_h[df_h[c_ot_all].astype(str).str.strip() == OTAZKA.strip()]
             pocet_za = len(df_current_h[df_current_h[c_hl].astype(str).str.upper().str.contains("ANO|ZA")])
             pocet_proti = len(df_current_h[df_current_h[c_hl].astype(str).str.upper().str.contains("NIE|PROTI")])
+            
             st.write("### Aktuálny stav hlasovania")
             s1, s2, s3 = st.columns(3)
             s1.metric("ZA 👍", f"{pocet_za}")
@@ -219,8 +200,9 @@ try:
             s3.metric("Spolu", f"{pocet_za + pocet_proti}")
 
         st.divider()
-        if not anketa_aktivna:
-            st.error("⌛ Čas na hlasovanie v tejto ankete už vypršal.")
+        
+        if not anketa_bezi:
+            st.warning("⌛ Čas na hlasovanie v tejto ankete už vypršal.")
         else:
             v_cist = u['vs'].lstrip('0')
             c_vs = next((c for c in df_h.columns if "VS" in c.upper()), "VS")
