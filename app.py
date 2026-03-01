@@ -3,6 +3,8 @@ import pandas as pd
 import plotly.express as px
 import urllib.parse
 import time
+import os
+import base64
 from datetime import datetime
 
 # ==========================================
@@ -16,6 +18,51 @@ HLAVNE_HESLO = "Victory2026"
 KONIEC_ANKETY = "2026-03-05"
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
+
+# --- MODUL PRE POZADIE (OBRÁZOK + ZACHOVANIE BIELEHO STREDU) ---
+def apply_custom_design():
+    # Pokus o načítanie obrázka zo lokálneho disku
+    script_directory = os.path.dirname(__file__)
+    img_path = os.path.join(script_directory, "image_5.png")
+    
+    img_base64 = ""
+    if os.path.exists(img_path):
+        with open(img_path, "rb") as f:
+            img_base64 = base64.b64encode(f.read()).decode()
+    
+    # CSS pre vloženie pozadia a fixáciu stredového panelu
+    st.markdown(f"""
+        <style>
+        /* Nastavenie pozadia pre celú aplikáciu */
+        .stApp {{
+            background-image: linear-gradient(rgba(255,255,255,0.5), rgba(255,255,255,0.5)), 
+                              url("data:image/png;base64,{img_base64}");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }}
+        
+        /* Zabezpečenie, že stredový kontajner zostane biely a čitateľný */
+        /* Ponechávame pôvodné nastavenia Streamlitu, len fixujeme biele pozadie */
+        .main .block-container {{
+            background-color: rgba(255, 255, 255, 0.95); /* Takmer úplne biela */
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }}
+        
+        /* Odstránenie Streamlit loga a menu pre čistejší dizajn */
+        header {{ visibility: hidden; }}
+        footer {{ visibility: hidden; }}
+        </style>
+    """, unsafe_allow_html=True)
+
+# Spustenie modulu pre dizajn
+apply_custom_design()
+
+# ==========================================
+# POMOCNÉ FUNKCIE (BEZ ZMIEN)
+# ==========================================
 
 def get_df(sheet):
     try:
@@ -63,7 +110,7 @@ def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
     return round(suma_uhrad, 2), round(suma_predpisov, 2), round(suma_uhrad - suma_predpisov, 2)
 
 # ==========================================
-# 2. AUTENTIFIKÁCIA A OVERENIE DLHU
+# 2. AUTENTIFIKÁCIA A OVERENIE DLHU (BEZ ZMIEN)
 # ==========================================
 if "auth_pass" not in st.session_state: st.session_state["auth_pass"] = False
 if "user_data" not in st.session_state: st.session_state["user_data"] = None
@@ -130,7 +177,7 @@ if st.session_state["user_data"] and not st.session_state["debt_confirmed"]:
     st.rerun()
 
 # ==========================================
-# 3. HLAVNÝ PORTÁL (Dostupný po potvrdení)
+# 3. HLAVNÝ PORTÁL (Dostupný po potvrdení) (BEZ ZMIEN)
 # ==========================================
 try:
     u = st.session_state["user_data"]
@@ -246,8 +293,7 @@ try:
                     <p style="color:#2f855a; font-weight:bold;">Máte preplatok: {bilancia:.2f} €</p>
                 </div>""", unsafe_allow_html=True)
 
-       # --- DOPLNOK PRE ZÁSTUPCU (PREHĽAD BLOKU) ---
-        # Logika je plne dynamická podľa stĺpca 'Rola' v hárku Adresar
+        # --- DYNAMICKÝ PREHĽAD PRE ZÁSTUPCU (BEZ ZMIEN) ---
         je_zastupca_v_tabulke = False
         df_a = get_df("Adresar")
         
