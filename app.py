@@ -12,7 +12,7 @@ MAIL_SPRAVCA = "petermarkuska@gmail.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
 OTAZKA = "Postavíme heliport?" 
 HLAVNE_HESLO = "Victory2026" 
-MESACNY_PREDPIS = 10.0 
+# MESACNY_PREDPIS sa už nepoužíva fixne, berie sa z hárka Konfiguracia
 # TU SI ZMEŇ DÁTUM KONCA (Formát RRRR-MM-DD):
 KONIEC_ANKETY = "2026-03-05"
 
@@ -27,6 +27,41 @@ def get_df(sheet):
         return df.dropna(how='all')
     except:
         return pd.DataFrame()
+
+def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
+    """
+    Nová logika: Sčíta všetky predpisy z hárka Konfiguracia po aktuálny mesiac
+    a odpočíta sumu všetkých stĺpcov s lomkou (napr. /26, /27) z hárka Platby.
+    """
+    teraz = datetime.now()
+    akt_m = teraz.month
+    akt_r = teraz.year
+
+    if df_konfig.empty:
+        return 0.0, 0.0, 0.0
+
+    # 1. Suma predpisov z Konfigurácie (história + dnes)
+    df_k = df_konfig.copy()
+    df_k['Mesiac'] = pd.to_numeric(df_k['Mesiac'], errors='coerce')
+    df_k['Rok'] = pd.to_numeric(df_k['Rok'], errors='coerce')
+    df_k['Predpis'] = pd.to_numeric(df_k['Predpis'], errors='coerce').fillna(0)
+    
+    mask = (df_k['Rok'] < akt_r) | ((df_k['Rok'] == akt_r) & (df_k['Mesiac'] <= akt_m))
+    suma_predpisov = df_k[mask]['Predpis'].sum()
+
+    # 2. Suma všetkých platieb užívateľa (naprieč všetkými rokmi)
+    vs_p = next((c for c in df_platby.columns if "VS" in c.upper()), "VS")
+    df_platby[vs_p] = df_platby[vs_p].astype(str).str.strip().str.zfill(4)
+    u_riadok = df_platby[df_platby[vs_p] == vs_uzivatela]
+
+    if u_riadok.empty:
+        return 0.0, suma_predpisov, -suma_predpisov
+
+    # Vyberieme všetky stĺpce, ktoré obsahujú lomku (01/26, 05/27 atď.)
+    stlpce_historie = [c for c in df_platby.columns if "/" in c]
+    suma_uhrad = pd.to_numeric(u_riadok.iloc[0][stlpce_historie], errors='coerce').fillna(0).sum()
+
+    return suma_uhrad, suma_predpisov, (suma_uhrad - suma_predpisov)
 
 # ==========================================
 # 2. AUTENTIFIKÁCIA A OVERENIE DLHU
@@ -72,35 +107,26 @@ if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
 if st.session_state["user_data"] and not st.session_state["debt_confirmed"]:
     u = st.session_state["user_data"]
     df_p = get_df("Platby")
+    df_k = get_df("Konfiguracia")
     
-    if not df_p.empty:
-        vs_p = next((c for c in df_p.columns if "VS" in c.upper()), "VS")
-        df_p[vs_p] = df_p[vs_p].astype(str).str.strip().str.zfill(4)
-        moje_platby = df_p[df_p[vs_p] == u['vs']]
+    if not df_p.empty and not df_k.empty:
+        _, _, bilancia = vypocitaj_bilanciu(u['vs'], df_p, df_k)
         
-        if not moje_platby.empty:
-            t = datetime.now()
-            ocakavane = t.month * MESACNY_PREDPIS
-            stlpce_26 = [c for c in moje_platby.columns if "/26" in c]
-            realne = pd.to_numeric(moje_platby.iloc[0][stlpce_26], errors='coerce').fillna(0).sum()
-            bilancia = realne - ocakavane
+        if bilancia < 0:
+            st.markdown(f"""
+            <div style="background-color:#fff5f5; padding:30px; border-radius:15px; border:3px solid #e53e3e; text-align:center; margin-top: 50px;">
+                <h2 style="color:#c53030; margin-top:0;">⚠️ Pozor</h2>
+                <h3 style="color:#2d3748;">Evidujeme nedoplatok: {abs(bilancia):.2f} €</h3>
+                <p style="color:#4a5568; margin-bottom: 25px;">Prosíme o vyrovnanie záväzku v čo najkratšom čase.</p>
+            </div>
+            """, unsafe_allow_html=True)
             
-            if bilancia < 0:
-                st.markdown(f"""
-                <div style="background-color:#fff5f5; padding:30px; border-radius:15px; border:3px solid #e53e3e; text-align:center; margin-top: 50px;">
-                    <h2 style="color:#c53030; margin-top:0;">⚠️ Pozor</h2>
-                    <h3 style="color:#2d3748;">Evidujeme nedoplatok: {abs(bilancia):.2f} €</h3>
-                    <p style="color:#4a5568; margin-bottom: 25px;">Prosíme o vyrovnanie záväzku v čo najkratšom čase.</p>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                st.write("") # Medzera
-                if st.button("Pokračovať na web", use_container_width=True):
-                    st.session_state["debt_confirmed"] = True
-                    st.rerun()
-                st.stop()
+            st.write("") 
+            if st.button("Pokračovať na web", use_container_width=True):
+                st.session_state["debt_confirmed"] = True
+                st.rerun()
+            st.stop()
     
-    # Ak nemá dlh, automaticky ho pustí ďalej
     st.session_state["debt_confirmed"] = True
     st.rerun()
 
@@ -114,6 +140,7 @@ try:
     df_h = get_df("Hlasovanie")
     df_n = get_df("Nastenka")
     df_o = get_df("Odkazy")
+    df_k = get_df("Konfiguracia")
 
     st.markdown(f"<h1 style='text-align: center;'>Vitaj, {u['meno']} 👋</h1>", unsafe_allow_html=True)
     
@@ -195,30 +222,28 @@ try:
         st.subheader(f"💰 Moje platby (VS: {u['vs']})")
         vs_p = next((c for c in df_p.columns if "VS" in c.upper()), "VS")
         df_p[vs_p] = df_p[vs_p].astype(str).str.strip().str.zfill(4)
-        moje_platby = df_p[df_p[vs_p] == u['vs']]
+        moje_riadky = df_p[df_p[vs_p] == u['vs']]
 
-        if not moje_platby.empty:
-            st.dataframe(moje_platby, hide_index=True, use_container_width=True)
-            t = datetime.now()
-            ocakavane = t.month * MESACNY_PREDPIS
-            stlpce_26 = [c for c in moje_platby.columns if "/26" in c]
-            realne = pd.to_numeric(moje_platby.iloc[0][stlpce_26], errors='coerce').fillna(0).sum()
-            bilancia = realne - ocakavane
+        if not moje_riadky.empty:
+            st.dataframe(moje_riadky, hide_index=True, use_container_width=True)
+            
+            # NOVÝ VÝPOČET CEZ FUNKCIU
+            realne, ocakavane, bilancia = vypocitaj_bilanciu(u['vs'], df_p, df_k)
 
             st.divider()
             if bilancia < 0:
                 st.markdown(f"""<div style="background-color:#fff5f5; padding:20px; border-radius:12px; border:3px solid #e53e3e; text-align:center;">
                     <h3 style="color:#c53030; margin-top:0;">⚠️ Evidujeme nedoplatok: {abs(bilancia):.2f} €</h3>
-                    <p style="color:#2d3748; font-size:1.1em;"><b>Ako sme k tomu prišli?</b></p>
-                    <p style="color:#2d3748;">K dnešnému dňu (mesiac {t.month}/2026) má byť podľa predpisu (10 € / mesiac) uhradených spolu: <b>{ocakavane:.2f} €</b>.</p>
-                    <p style="color:#2d3748;">Vaša celková suma pripísaných úhrad v systéme je: <b>{realne:.2f} €</b>.</p>
-                    <p style="color:#c53030; font-weight:bold;">Rozdiel: {realne:.2f} € - {ocakavane:.2f} € = {bilancia:.2f} €</p>
+                    <p style="color:#2d3748; font-size:1.1em;"><b>Historická bilancia</b></p>
+                    <p style="color:#2d3748;">Suma všetkých predpisov (podľa hárka Konfiguracia): <b>{ocakavane:.2f} €</b>.</p>
+                    <p style="color:#2d3748;">Suma všetkých vašich úhrad (všetky roky): <b>{realne:.2f} €</b>.</p>
+                    <p style="color:#c53030; font-weight:bold;">Rozdiel: {bilancia:.2f} €</p>
                 </div>""", unsafe_allow_html=True)
             else:
                 st.markdown(f"""<div style="background-color:#f0fff4; padding:20px; border-radius:12px; border:3px solid #38a169; text-align:center;">
                     <h3 style="color:#2f855a; margin-top:0;">✅ Platby sú v poriadku</h3>
-                    <p style="color:#2d3748;">K dnešnému dňu (mesiac {t.month}/2026) má byť uhradených spolu: <b>{ocakavane:.2f} €</b>.</p>
-                    <p style="color:#2d3748;">Vaša celková suma úhrad v systéme: <b>{realne:.2f} €</b>.</p>
+                    <p style="color:#2d3748;">Celkový kumulatívny predpis: <b>{ocakavane:.2f} €</b>.</p>
+                    <p style="color:#2d3748;">Vaše celkové úhrady v systéme: <b>{realne:.2f} €</b>.</p>
                     <p style="color:#2f855a; font-weight:bold;">Máte preplatok: {bilancia:.2f} €</p>
                 </div>""", unsafe_allow_html=True)
 
@@ -279,7 +304,6 @@ try:
             mail_link = f"mailto:{MAIL_SPRAVCA}?subject={o_subj_encoded}&body={o_body_encoded}"
             st.link_button("✉️ Otvoriť e-mail s týmto textom", mail_link, use_container_width=True)
         
-        # --- MANUÁLNY NÁVOD PRE POKEC ---
         st.markdown(f"""
         <div style="background-color:#f0f7ff; padding:15px; border-radius:10px; border:2px solid #007bff; margin-top:15px;">
             <h4 style="color:#0056b3; margin-top:0;">📩 Manuálny návod pre odkaz</h4>
