@@ -19,6 +19,39 @@ KONIEC_ANKETY = "2026-03-05"
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
 
+# ==========================================
+# MODUL: OBRAZOVÁ HLAVIČKA (VICTORY PORT)
+# ==========================================
+def insert_header_with_bg():
+    img_url = "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?q=80&w=2070&auto=format&fit=crop"
+    
+    st.markdown(
+        f"""
+        <div style="
+            background-image: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url('{img_url}');
+            background-size: cover;
+            background-position: center;
+            padding: 60px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 25px;
+            border: 1px solid #333;
+        ">
+            <h1 style="color: white !important; margin: 0; text-shadow: 2px 2px 10px rgba(0,0,0,0.8); font-size: 2.5em;">
+                Správa areálu Victory Port
+            </h1>
+            <p style="color: white !important; text-shadow: 1px 1px 5px rgba(0,0,0,0.8); font-size: 1.2em; opacity: 0.9;">
+                Váš domov, vaša komunita
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+# Spustenie hlavičky
+insert_header_with_bg()
+# ==========================================
+
 def get_df(sheet):
     try:
         cache_bust = int(time.time())
@@ -384,5 +417,6 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
 
 
