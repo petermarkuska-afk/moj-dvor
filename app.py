@@ -3,8 +3,6 @@ import pandas as pd
 import plotly.express as px
 import urllib.parse
 import time
-import os
-import base64
 from datetime import datetime
 
 # ==========================================
@@ -20,66 +18,6 @@ ZASTUPCOVIA = ["1007", "1105", "1201"]
 KONIEC_ANKETY = "2026-03-05"
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
-
-# --- MODUL PRE DIZAJN: ČIERNY PANEL NA OBRÁZKOVOM POZADÍ ---
-def apply_custom_design():
-    script_directory = os.path.dirname(__file__)
-    img_path = os.path.join(script_directory, "image_5.png")
-    img_base64 = ""
-    if os.path.exists(img_path):
-        with open(img_path, "rb") as f:
-            img_base64 = base64.b64encode(f.read()).decode()
-    
-    st.markdown(f"""
-        <style>
-        /* Pozadie celej stránky s jemným stmavením */
-        .stApp {{
-            background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), 
-                              url("data:image/png;base64,{img_base64}");
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-        }}
-        
-        /* HLAVNÝ KONTAJNER - ÚPLNE ČIERNY A NEPRIEHLADNÝ PRE MAX ČITATEĽNOSŤ */
-        .main .block-container {{
-            background-color: #000000 !important;
-            background-image: none !important;
-            max-width: 850px !important;
-            padding: 40px !important;
-            margin-top: 50px !important;
-            margin-bottom: 50px !important;
-            border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,1);
-            opacity: 1 !important;
-        }}
-
-        /* Všetky texty v hlavnom paneli musia byť biele */
-        h1, h2, h3, h4, p, span, label, li {{
-            color: white !important;
-        }}
-
-        /* Úprava tabuliek pre tmavý režim */
-        [data-testid="stDataFrame"], [data-testid="stTable"] {{
-            background-color: #000000 !important;
-        }}
-        
-        /* Oprava Alert boxov, aby zostali čitateľné (čierny text na svetlom pozadí alertu) */
-        div[data-testid="stNotification"] p, 
-        div[style*="background-color"] p,
-        div[style*="background-color"] b,
-        div[style*="background-color"] h2,
-        div[style*="background-color"] h3,
-        div[style*="background-color"] h4 {{
-            color: #000000 !important;
-        }}
-        
-        header {{ visibility: hidden; }}
-        footer {{ visibility: hidden; }}
-        </style>
-    """, unsafe_allow_html=True)
-
-apply_custom_design()
 
 def get_df(sheet):
     try:
@@ -205,7 +143,7 @@ try:
     df_o = get_df("Odkazy")
     df_k = get_df("Konfiguracia")
 
-    st.markdown(f<h1 style='text-align: center;'>Vitaj, {u['meno']} 👋</h1>", unsafe_allow_html=True)
+    st.markdown(f"<h1 style='text-align: center;'>Vitaj, {u['meno']} 👋</h1>", unsafe_allow_html=True)
     
     col_out1, col_out2, col_out3 = st.columns([1,1,1])
     with col_out2:
@@ -310,21 +248,26 @@ try:
                     <p style="color:#2f855a; font-weight:bold;">Máte preplatok: {bilancia:.2f} €</p>
                 </div>""", unsafe_allow_html=True)
 
-        # --- DOPLNOK PRE ZÁSTUPCU (PREHĽAD BLOKU) ---
+       # --- DOPLNOK PRE ZÁSTUPCU (PREHĽAD BLOKU) ---
+        # Kontrola prebieha DYNAMICKY podľa stĺpca 'Rola' v hárku Adresar
         je_zastupca_v_tabulke = False
         df_a = get_df("Adresar")
         
         if not df_a.empty:
             vs_col_a = next((c for c in df_a.columns if "VS" in c.upper()), "VS")
+            # Podľa tvojho screenshotu sa stĺpec volá 'Rola'
             rola_col = next((c for c in df_a.columns if "ROLA" in c.upper()), None)
             
             if rola_col:
+                # Očistíme VS a porovnáme s prihláseným užívateľom
                 u_row = df_a[df_a[vs_col_a].astype(str).str.strip().str.zfill(4) == u['vs']]
                 if not u_row.empty:
                     hodnota_roly = str(u_row.iloc[0][rola_col]).upper().strip()
+                    # Ak je bunka prázdna (ako na screenshote), podmienka nebude splnená
                     if "ZASTUPCA" in hodnota_roly:
                         je_zastupca_v_tabulke = True
 
+        # Tabuľka sa zobrazí LEN ak má užívateľ v tabuľke napísané "Zastupca"
         if je_zastupca_v_tabulke:
             st.divider()
             pref = u['vs'][:2]
@@ -391,6 +334,7 @@ try:
                 <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
             </div>""", unsafe_allow_html=True)
 
+        # --- TU JE DOPLNENÁ HISTÓRIA HLASOVANÍ ---
         st.divider()
         st.subheader("📜 História mojich hlasovaní")
         if not df_h.empty:
@@ -440,3 +384,5 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
+
