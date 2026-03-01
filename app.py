@@ -29,11 +29,13 @@ def get_df(sheet):
         return pd.DataFrame()
 
 # ==========================================
-# 2. AUTENTIFIKÁCIA
+# 2. AUTENTIFIKÁCIA A OVERENIE DLHU
 # ==========================================
 if "auth_pass" not in st.session_state: st.session_state["auth_pass"] = False
 if "user_data" not in st.session_state: st.session_state["user_data"] = None
+if "debt_confirmed" not in st.session_state: st.session_state["debt_confirmed"] = False
 
+# Krok 1: Hlavné heslo
 if not st.session_state["auth_pass"]:
     st.markdown("<h2 style='text-align: center;'>🔐 Vstup do portálu</h2>", unsafe_allow_html=True)
     heslo_vstup = st.text_input("Zadajte prístupové heslo:", type="password")
@@ -44,6 +46,7 @@ if not st.session_state["auth_pass"]:
         else: st.error("Nesprávne heslo!")
     st.stop()
 
+# Krok 2: VS Identifikácia
 if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
     st.markdown("<h2 style='text-align: center;'>🔑 Identifikácia majiteľa</h2>", unsafe_allow_html=True)
     vs_vstup = st.text_input("Zadajte váš Variabilný symbol (VS):", placeholder="Napr. 1007")
@@ -65,8 +68,44 @@ if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
                 else: st.error(f"VS {target_vs} nenájdený.")
     st.stop()
 
+# Krok 3: Kontrola nedoplatku (Interstitial)
+if st.session_state["user_data"] and not st.session_state["debt_confirmed"]:
+    u = st.session_state["user_data"]
+    df_p = get_df("Platby")
+    
+    if not df_p.empty:
+        vs_p = next((c for c in df_p.columns if "VS" in c.upper()), "VS")
+        df_p[vs_p] = df_p[vs_p].astype(str).str.strip().str.zfill(4)
+        moje_platby = df_p[df_p[vs_p] == u['vs']]
+        
+        if not moje_platby.empty:
+            t = datetime.now()
+            ocakavane = t.month * MESACNY_PREDPIS
+            stlpce_26 = [c for c in moje_platby.columns if "/26" in c]
+            realne = pd.to_numeric(moje_platby.iloc[0][stlpce_26], errors='coerce').fillna(0).sum()
+            bilancia = realne - ocakavane
+            
+            if bilancia < 0:
+                st.markdown(f"""
+                <div style="background-color:#fff5f5; padding:30px; border-radius:15px; border:3px solid #e53e3e; text-align:center; margin-top: 50px;">
+                    <h2 style="color:#c53030; margin-top:0;">⚠️ Pozor</h2>
+                    <h3 style="color:#2d3748;">Evidujeme nedoplatok: {abs(bilancia):.2f} €</h3>
+                    <p style="color:#4a5568; margin-bottom: 25px;">Prosíme o vyrovnanie záväzku v čo najkratšom čase.</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.write("") # Medzera
+                if st.button("Pokračovať na web", use_container_width=True):
+                    st.session_state["debt_confirmed"] = True
+                    st.rerun()
+                st.stop()
+    
+    # Ak nemá dlh, automaticky ho pustí ďalej
+    st.session_state["debt_confirmed"] = True
+    st.rerun()
+
 # ==========================================
-# 3. HLAVNÝ PORTÁL
+# 3. HLAVNÝ PORTÁL (Dostupný po potvrdení)
 # ==========================================
 try:
     u = st.session_state["user_data"]
@@ -81,7 +120,7 @@ try:
     col_out1, col_out2, col_out3 = st.columns([1,1,1])
     with col_out2:
         if st.button("Odhlásiť sa", use_container_width=True):
-            st.session_state.update({"auth_pass": False, "user_data": None})
+            st.session_state.update({"auth_pass": False, "user_data": None, "debt_confirmed": False})
             st.rerun()
 
     st.divider()
@@ -264,7 +303,3 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
-
-
-
-
