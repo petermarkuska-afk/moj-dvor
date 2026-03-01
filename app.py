@@ -105,18 +105,36 @@ try:
     st.divider()
     tabs = st.tabs(["📢 Nástenka", "📊 Financie", "💰 Moje platby", "🗳️ Anketa", "💬 Miestny pokec"])
 
-    # --- T1: NÁSTENKA ---
+   # --- T1: NÁSTENKA ---
     with tabs[0]:
-        # NOVÝ MODUL: Upozornenie na anketu
+        # MODUL: Upozornenie na anketu s opraveným kontrastom
         if anketa_aktivna:
             st.markdown(f"""
             <div style="background-color:#fff3cd; padding:20px; border-radius:15px; border-left:8px solid #ffc107; margin-bottom:25px;">
                 <h3 style="color:#856404; margin-top:0;">🗳️ Prebieha hlasovanie!</h3>
-                <p style="font-size:1.1em; color:#856404;"><b>Otázka:</b> {OTAZKA}</p>
-                <p style="font-size:1.2em; font-weight:bold; color:#d9534f;">⏳ Koniec o: {dni_do_konca} dní ({koniec_dt.strftime('%d.%m.%Y')})</p>
-                <p style="font-size:0.9em;">Svoj hlas môžete odovzdať v záložke <b>Anketa</b>.</p>
+                <p style="font-size:1.1em; color:#856404; margin-bottom:10px;"><b>Otázka:</b> {OTAZKA}</p>
+                <p style="font-size:1.2em; font-weight:bold; color:#d9534f; margin-bottom:10px;">⏳ Koniec o: {dni_do_konca} dní ({koniec_dt.strftime('%d.%m.%Y')})</p>
+                <p style="font-size:1.0em; color:#856404; opacity: 0.9;">Svoj hlas môžete odovzdať v záložke <b>Anketa</b>.</p>
             </div>
             """, unsafe_allow_html=True)
+
+        st.subheader("📢 Aktuálne oznamy")
+        if not df_n.empty: st.table(df_n.iloc[::-1])
+        st.divider()
+        st.subheader("🛠️ Súkromný podnet pre správcu")
+        podnet_text = st.text_area("Napíšte váš podnet (uvidí ho len správca):", key="pod_area")
+        p_subj = urllib.parse.quote(f"Podnet VP {u['vs']}")
+        p_body = urllib.parse.quote(f"Od: {u['meno']} (VS: {u['vs']})\nEmail: {u['email']}\n\nPodnet:\n{podnet_text}")
+        st.link_button("🚀 Odoslať podnet automaticky", f"mailto:{MAIL_SPRAVCA}?subject={p_subj}&body={p_body}", use_container_width=True)
+        
+        st.markdown(f"""
+        <div style="background-color:#fff5f5; padding:15px; border-radius:10px; border:2px solid #e53e3e; margin-top:15px;">
+            <h4 style="color:#c53030; margin-top:0;">📩 Manuálny návod</h4>
+            <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
+            Predmet: <b>Podnet VP {u['vs']}</b><br>
+            Obsah: <b>Do textu e-mailu, prosím, podrobne popíšte váš problém.</b></p>
+        </div>
+        """, unsafe_allow_html=True)
 
         st.subheader("📢 Aktuálne oznamy")
         if not df_n.empty: st.table(df_n.iloc[::-1])
@@ -217,3 +235,4 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
