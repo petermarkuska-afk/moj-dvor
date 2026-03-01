@@ -249,7 +249,22 @@ try:
                 </div>""", unsafe_allow_html=True)
 
         # --- DOPLNOK PRE ZÁSTUPCU (PREHĽAD BLOKU) ---
-        if u['vs'] in ZASTUPCOVIA:
+        # 1. Najprv zistíme, či má užívateľ v Adresári v stĺpci 'Poznámka' napísané 'Zástupca'
+        je_zastupca_v_tabulke = False
+        df_a = get_df("Adresar")
+        if not df_a.empty:
+            vs_col_a = next((c for c in df_a.columns if "VS" in c.upper()), "VS")
+            # Hľadáme stĺpec s poznámkou/rolou
+            poznamka_col = next((c for c in df_a.columns if "POZNÁMKA" in c.upper().replace("Á","A") or "ROLA" in c.upper()), None)
+            
+            if poznamka_col:
+                u_row = df_a[df_a[vs_col_a].astype(str).str.strip().str.zfill(4) == u['vs']]
+                if not u_row.empty:
+                    if "ZASTUPCA" in str(u_row.iloc[0][poznamka_col]).upper():
+                        je_zastupca_v_tabulke = True
+
+        # 2. Tabuľka sa zobrazí, len ak je v zozname ALEBO má príznak v tabuľke
+        if u['vs'] in ZASTUPCOVIA or je_zastupca_v_tabulke:
             st.divider()
             pref = u['vs'][:2]
             st.subheader(f"📊 Prehľad susedov (Blok {pref}xx)")
@@ -368,3 +383,4 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
