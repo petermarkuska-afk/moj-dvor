@@ -203,6 +203,20 @@ try:
                     <p style="color:#2f855a; font-weight:bold;">Máte preplatok: {bilancia:.2f} €</p>
                 </div>""", unsafe_allow_html=True)
 
+    st.divider()
+st.subheader("📲 Zaplatiť rýchlo cez QR")
+
+nedoplatok = abs(bilancia)
+
+qr_img = generate_qr_payment(
+    IBAN_SPRAVCA,
+    nedoplatok,
+    u['vs'],
+    f"Nedoplatok VS {u['vs']}"
+)
+
+st.image(qr_img, caption=f"QR kód na úhradu {nedoplatok:.2f} €")
+
     # --- T4: ANKETA ---
     with tabs[3]:
         if OTAZKA.strip().upper() == "ŽIADNA":
@@ -283,6 +297,7 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
 
 
 
