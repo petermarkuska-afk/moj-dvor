@@ -170,12 +170,16 @@ try:
             st.dataframe(df_v[show_cols], hide_index=True, use_container_width=True,
                 column_config={"Doklad": st.column_config.LinkColumn("Doklad 🔗", display_text="Otvoriť")})
 
-    # --- T3: MOJE PLATBY + QR KÓD ---
+    # --- T3: MOJE PLATBY + QR KÓD (OPRAVENÝ VS) ---
     with tabs[2]:
         st.subheader(f"💰 Moje platby (VS: {u['vs']})")
+        
+        # Zabezpečíme, aby VS bol vždy 4-miestny reťazec s nulami na začiatku
+        vs_pre_qr = str(u['vs']).strip().zfill(4)
+        
         vs_p = next((c for c in df_p.columns if "VS" in c.upper()), "VS")
         df_p[vs_p] = df_p[vs_p].astype(str).str.strip().str.zfill(4)
-        moje_platby = df_p[df_p[vs_p] == u['vs']]
+        moje_platby = df_p[df_p[vs_p] == vs_pre_qr]
 
         if not moje_platby.empty:
             st.dataframe(moje_platby, hide_index=True, use_container_width=True)
@@ -190,17 +194,19 @@ try:
                 nedoplatok = abs(bilancia)
                 st.markdown(f"""<div style="background-color:#fff5f5; padding:20px; border-radius:12px; border:3px solid #e53e3e; text-align:center; margin-bottom:20px;">
                     <h3 style="color:#c53030; margin-top:0;">⚠️ Evidujeme nedoplatok: {nedoplatok:.2f} €</h3>
-                    <p style="color:#2d3748;">Naskenujte QR kód pre rýchlu platbu:</p>
+                    <p style="color:#2d3748;">Naskenujte QR kód pre rýchlu platbu (VS {vs_pre_qr}):</p>
                 </div>""", unsafe_allow_html=True)
 
-                qr_string = f"SPD*1.0*ACC:{IBAN_FONDU}*AM:{nedoplatok:.2f}*CUR:EUR*VS:{u['vs']}*MSG:Fond Victory Port"
+                # OPRAVA: Reťazec pre QR kód s garantovaným VS
+                qr_string = f"SPD*1.0*ACC:{IBAN_FONDU}*AM:{nedoplatok:.2f}*CUR:EUR*VS:{vs_pre_qr}*MSG:Fond Victory Port"
+                
                 qr = segno.make(qr_string)
                 buff = io.BytesIO()
                 qr.save(buff, kind='png', scale=10)
                 
                 col_q1, col_q2, col_q3 = st.columns([1, 2, 1])
                 with col_q2:
-                    st.image(buff.getvalue(), caption=f"QR Platba: {nedoplatok:.2f} € (VS {u['vs']})")
+                    st.image(buff.getvalue(), caption=f"QR Platba: {nedoplatok:.2f} € | VS: {vs_pre_qr}")
             else:
                 st.success(f"✅ Platby sú v poriadku. Máte preplatok: {bilancia:.2f} €")
 
@@ -279,3 +285,4 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
