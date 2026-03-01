@@ -89,7 +89,7 @@ try:
 
     # --- T1: NÁSTENKA ---
     with tabs[0]:
-        # --- LOGIKA ODPOČTU S POISTKOU ---
+        # --- LOGIKA ODPOČTU S POISTKOU A VÝZVOU ---
         if OTAZKA.strip().upper() != "ŽIADNA":
             try:
                 target_dt = datetime.strptime(KONIEC_ANKETY, "%Y-%m-%d")
@@ -100,7 +100,8 @@ try:
                     <div style="background-color:#fff3cd; padding:15px; border-radius:10px; border-left:5px solid #ffc107; margin-bottom:20px;">
                         <h4 style="color:#856404; margin-top:0;">🗳️ Prebieha hlasovanie</h4>
                         <p style="color:#856404; margin-bottom:5px;"><b>Otázka:</b> {OTAZKA}</p>
-                        <p style="color:#d9534f; font-weight:bold; font-size:1.1em; margin-bottom:0;">⌛ Koniec o: {days_left} dní</p>
+                        <p style="color:#d9534f; font-weight:bold; font-size:1.1em; margin-bottom:10px;">⌛ Koniec o: {days_left} dní</p>
+                        <p style="color:#2d3748; font-style: italic; border-top: 1px solid #ffeeba; pt-5px;">👉 Nezabudnite zahlasovať v ankete v záložke <b>Anketa</b>.</p>
                     </div>
                     """, unsafe_allow_html=True)
             except:
