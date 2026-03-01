@@ -318,6 +318,20 @@ try:
                 <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
             </div>""", unsafe_allow_html=True)
 
+        # --- TU JE DOPLNENÁ HISTÓRIA HLASOVANÍ ---
+        st.divider()
+        st.subheader("📜 História mojich hlasovaní")
+        if not df_h.empty:
+            c_vs_h = next((c for c in df_h.columns if "VS" in c.upper()), "VS")
+            df_h[c_vs_h] = df_h[c_vs_h].astype(str).str.strip().str.zfill(4)
+            moje_hlasy = df_h[df_h[c_vs_h] == u['vs']]
+            if not moje_hlasy.empty:
+                st.dataframe(moje_hlasy, hide_index=True, use_container_width=True)
+            else:
+                st.info("Zatiaľ ste sa nezúčastnili žiadneho hlasovania.")
+        else:
+            st.info("Systém zatiaľ neeviduje žiadne hlasovania.")
+
     # --- T5: MIESTNY POKEC ---
     with tabs[4]:
         st.subheader("💬 Verejná nástenka odkazov")
