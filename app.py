@@ -19,62 +19,6 @@ KONIEC_ANKETY = "2026-03-05"
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
 
-# ==========================================
-# AGRESÍVNY MODUL PRE POZADIE (STRED)
-# ==========================================
-def apply_final_bg():
-    img_url = "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?q=80&w=2070&auto=format&fit=crop"
-    
-    st.markdown(
-        f"""
-        <style>
-        /* 1. Celé pozadie aplikácie (boky) na čierno */
-        .stApp {{
-            background-color: #000000 !important;
-        }}
-
-        /* 2. Stredový kontajner s obrázkom a bielym prekrytím */
-        [data-testid="stMainViewContainer"] {{
-            background-image: linear-gradient(rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.94)), 
-                              url("{img_url}");
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-            max-width: 900px; /* Šírka stredového panelu */
-            margin: 0 auto;   /* Vycentrovanie */
-            border-left: 1px solid #333;
-            border-right: 1px solid #333;
-        }}
-
-        /* 3. VYNÚTENIE ČIERNEHO TEXTU PRE VŠETKO V STREDE */
-        .stApp {{
-            color: #000000 !important;
-        }}
-        
-        h1, h2, h3, h4, p, li, span, label {{
-            color: #000000 !important;
-        }}
-
-        /* 4. Oprava čitateľnosti tabuliek a grafov */
-        .stDataFrame, .stTable, .stPlotlyChart {{
-            background-color: #ffffff !important;
-            padding: 10px;
-            border-radius: 10px;
-            border: 1px solid #ddd;
-        }}
-
-        /* Skrytie bielych čiar Streamlitu navrchu */
-        header {{
-            visibility: hidden;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-apply_final_bg()
-# ==========================================
-
 def get_df(sheet):
     try:
         cache_bust = int(time.time())
@@ -440,6 +384,5 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
-
 
 
