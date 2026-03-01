@@ -19,6 +19,59 @@ KONIEC_ANKETY = "2026-03-05"
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
 
+# ==========================================
+# MODUL: POZADIE LEN PRE STREDOVÝ PANEL
+# ==========================================
+def apply_center_panel_bg():
+    img_url = "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?q=80&w=2070&auto=format&fit=crop"
+    
+    st.markdown(
+        f"""
+        <style>
+        /* Pozadie celej aplikácie ostáva čierne/tmavé */
+        .stApp {{
+            background-color: #0e1117;
+        }}
+
+        /* IBA STREDOVÝ PANEL dostane obrázok */
+        .main .block-container {{
+            background-image: linear-gradient(rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.92)), 
+                              url("{img_url}");
+            background-size: cover;
+            background-position: center;
+            background-attachment: local;
+            
+            /* Okraje panelu */
+            padding: 30px !important;
+            border-radius: 15px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }}
+
+        /* Všetky texty v stredovom paneli budú ostro čierne */
+        .main .block-container h1, 
+        .main .block-container h2, 
+        .main .block-container h3, 
+        .main .block-container p, 
+        .main .block-container b,
+        .main .block-container label {{
+            color: #000000 !important;
+        }}
+
+        /* Tabuľky a karty budú mať úplne biele pozadie pre 100% kontrast */
+        .stDataFrame, .stTable, [data-testid="stMetricValue"] {{
+            background-color: #ffffff !important;
+            border-radius: 8px;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+apply_center_panel_bg()
+# ==========================================
+
 def get_df(sheet):
     try:
         cache_bust = int(time.time())
@@ -384,5 +437,6 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
 
 
