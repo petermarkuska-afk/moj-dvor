@@ -13,8 +13,6 @@ SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
 OTAZKA = "Súhlasíte s jednorazovým vkladom do fondu areálu?" 
 HLAVNE_HESLO = "Victory2026" 
 MESACNY_PREDPIS = 10.0 
-# SEM ZADAJTE DÁTUM KONCA ANKETY:
-DATUM_KONCA_ANKETY = "2026-03-10" 
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
 
@@ -76,13 +74,6 @@ try:
     df_n = get_df("Nastenka")
     df_o = get_df("Odkazy")
 
-    # --- LOGIKA ODPOČTU ---
-    koniec_dt = datetime.strptime(DATUM_KONCA_ANKETY, "%Y-%m-%d")
-    teraz = datetime.now()
-    rozdiel = koniec_dt - teraz
-    dni_zostava = rozdiel.days + 1
-    anketa_bezi = rozdiel.total_seconds() > 0
-
     st.markdown(f"<h1 style='text-align: center;'>Vitaj, {u['meno']} 👋</h1>", unsafe_allow_html=True)
     
     col_out1, col_out2, col_out3 = st.columns([1,1,1])
@@ -96,16 +87,6 @@ try:
 
     # --- T1: NÁSTENKA ---
     with tabs[0]:
-        # Zobrazenie odpočtu na nástenke, ak anketa ešte prebieha
-        if anketa_bezi:
-            st.markdown(f"""
-            <div style="background-color:#fff3cd; padding:15px; border-radius:10px; border-left:5px solid #ffc107; margin-bottom:20px;">
-                <h4 style="color:#856404; margin-top:0;">🗳️ Prebieha hlasovanie</h4>
-                <p style="color:#856404; margin-bottom:5px;"><b>Otázka:</b> {OTAZKA}</p>
-                <p style="color:#d9534f; font-weight:bold; font-size:1.1em;">⏳ Koniec o: {dni_zostava} dní</p>
-            </div>
-            """, unsafe_allow_html=True)
-
         st.subheader("📢 Aktuálne oznamy")
         if not df_n.empty: st.table(df_n.iloc[::-1])
         st.divider()
@@ -183,13 +164,18 @@ try:
                     <p style="color:#2f855a; font-weight:bold;">Máte preplatok: {bilancia:.2f} €</p>
                 </div>""", unsafe_allow_html=True)
 
-    # --- T4: ANKETA ---
+    # --- T4: ANKETA (S VÝSLEDKAMI) ---
     with tabs[3]:
         st.subheader(f"🗳️ {OTAZKA}")
+        
+        # Sčítanie hlasov zo stĺpca "Hlas" (predpokladáme hodnoty ÁNO/NIE alebo ZA/PROTI)
         if not df_h.empty:
             c_hl = next((c for c in df_h.columns if "HLAS" in c.upper()), "Hlas")
             c_ot_all = next((c for c in df_h.columns if "OTAZKA" in str(c).upper().replace("Á","A")), "Otázka")
+            
+            # Filtrujeme hlasy len pre aktuálnu otázku
             df_current_h = df_h[df_h[c_ot_all].astype(str).str.strip() == OTAZKA.strip()]
+            
             pocet_za = len(df_current_h[df_current_h[c_hl].astype(str).str.upper().str.contains("ANO|ZA")])
             pocet_proti = len(df_current_h[df_current_h[c_hl].astype(str).str.upper().str.contains("NIE|PROTI")])
             
@@ -200,39 +186,76 @@ try:
             s3.metric("Spolu", f"{pocet_za + pocet_proti}")
 
         st.divider()
-        
-        if not anketa_bezi:
-            st.warning("⌛ Čas na hlasovanie v tejto ankete už vypršal.")
-        else:
-            v_cist = u['vs'].lstrip('0')
-            c_vs = next((c for c in df_h.columns if "VS" in c.upper()), "VS")
-            c_ot = next((c for c in df_h.columns if "OTAZKA" in str(c).upper().replace("Á","A")), "Otázka")
-            uz_hlasoval = any((df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_cist) & (df_h[c_ot].astype(str).str.strip() == OTAZKA.strip())) if not df_h.empty else False
+        v_cist = u['vs'].lstrip('0')
+        c_vs = next((c for c in df_h.columns if "VS" in c.upper()), "VS")
+        c_ot = next((c for c in df_h.columns if "OTAZKA" in str(c).upper().replace("Á","A")), "Otázka")
 
-            if uz_hlasoval:
-                st.success("✅ Váš hlas k tejto téme bol už prijatý.")
+        uz_hlasoval = False
+        if not df_h.empty and c_ot in df_h.columns:
+            mask = (df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_cist) & (df_h[c_ot].astype(str).str.strip() == OTAZKA.strip())
+            uz_hlasoval = any(mask)
+
+        if uz_hlasoval:
+            st.success("✅ Váš hlas k tejto téme bol už prijatý.")
+        else:
+            s_za = urllib.parse.quote(f"HLAS:ANO | VS:{u['vs']} | {OTAZKA}")
+            s_ni = urllib.parse.quote(f"HLAS:NIE | VS:{u['vs']} | {OTAZKA}")
+            b1, b2 = st.columns(2)
+            b1.link_button("👍 ZA", f"mailto:{MAIL_SPRAVCA}?subject={s_za}", use_container_width=True)
+            b2.link_button("👎 PROTI", f"mailto:{MAIL_SPRAVCA}?subject={s_ni}", use_container_width=True)
+
+        st.markdown(f"""<div style="background-color:#f0fff4; padding:15px; border-radius:10px; border:2px solid #38a169; margin-top:20px;">
+            <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne hlasovanie</h4>
+            <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
+            <b>Predmet ZA:</b> HLAS:ANO | VS:{u['vs']} | {OTAZKA}<br>
+            <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
+        </div>""", unsafe_allow_html=True)
+
+        st.divider()
+        st.subheader("📜 Moja história hlasovaní")
+        if not df_h.empty:
+            moje_h = df_h[df_h[c_vs].astype(str).str.strip().str.lstrip('0') == v_cist]
+            if not moje_h.empty: 
+                st.dataframe(moje_h, hide_index=True, use_container_width=True)
             else:
-                s_za = urllib.parse.quote(f"HLAS:ANO | VS:{u['vs']} | {OTAZKA}")
-                s_ni = urllib.parse.quote(f"HLAS:NIE | VS:{u['vs']} | {OTAZKA}")
-                b1, b2 = st.columns(2)
-                b1.link_button("👍 ZA", f"mailto:{MAIL_SPRAVCA}?subject={s_za}", use_container_width=True)
-                b2.link_button("👎 PROTI", f"mailto:{MAIL_SPRAVCA}?subject={s_ni}", use_container_width=True)
+                st.info("Zatiaľ ste v systéme nehlasovali.")
 
     # --- T5: MIESTNY POKEC ---
     with tabs[4]:
         st.subheader("💬 Verejná nástenka odkazov")
-        nova_sprava = st.text_area("Vaša správa pre susedov:", key="pokec_area")
-        if nova_sprava:
-            o_subj = urllib.parse.quote(f"ODKAZ | VS:{u['vs']}")
-            o_body = urllib.parse.quote(f"Od: {u['meno']}\n\n{nova_sprava}")
-            st.link_button("✉️ Otvoriť e-mail s týmto textom", f"mailto:{MAIL_SPRAVCA}?subject={o_subj}&body={o_body}", use_container_width=True)
+        st.write("Chcete niečo odkázať susedom? Napíšte správu sem. Po schválení správcom sa zobrazí všetkým.")
         
+        nova_sprava = st.text_area("Vaša správa pre susedov:", placeholder="Napr. Susedia, v sobotu robíme guláš...", key="pokec_area")
+        
+        if nova_sprava:
+            dnes = datetime.now().strftime("%d.%m.%Y")
+            o_subj = f"ODKAZ NA NASTENKU | VS:{u['vs']}"
+            telo_textu = f"Datum: {dnes}\nMeno: {u['meno']}\nVS: {u['vs']}\n\nODKAZ:\n{nova_sprava}"
+            o_subj_encoded = urllib.parse.quote(o_subj)
+            o_body_encoded = urllib.parse.quote(telo_textu)
+            mail_link = f"mailto:{MAIL_SPRAVCA}?subject={o_subj_encoded}&body={o_body_encoded}"
+            
+            st.link_button("✉️ Otvoriť e-mail s týmto textom", mail_link, use_container_width=True)
+            with st.expander("Nefunguje vám automatický e-mail?"):
+                st.code(telo_textu, language="text")
+        else:
+            st.warning("Napíšte najprv text správy.")
+        
+        st.markdown(f"""<div style="background-color:#f0fff4; padding:15px; border-radius:10px; border:2px solid #38a169; margin-top:20px;">
+            <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne odoslanie odkazu</h4>
+            <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
+            <b>Predmet:</b> ODKAZ NA NÁSTENKU | VS:{u['vs']}</p>
+        </div>""", unsafe_allow_html=True)
+
         st.divider()
+        st.subheader("📌 Posledné správy")
         if not df_o.empty:
             for _, row in df_o.iloc[::-1].iterrows():
                 with st.chat_message("user"):
                     st.write(f"**{row.get('Meno', 'Neznámy')}** ({row.get('Dátum', '')})")
                     st.info(row.get('Odkaz', 'Bez textu'))
+        else:
+            st.info("Zatiaľ tu nie sú žiadne verejné odkazy.")
 
 except Exception as e:
     st.error(f"Systémová informácia: {e}")
