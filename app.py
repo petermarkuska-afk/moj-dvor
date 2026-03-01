@@ -19,6 +19,43 @@ KONIEC_ANKETY = "2026-03-05"
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
 
+# ==========================================
+# POZADIE A ČIERNY STRED
+# ==========================================
+st.markdown("""
+<style>
+
+/* Celé pozadie stránky */
+.stApp {
+    background: url("image_5.png");
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+}
+
+/* Hlavný obsahový kontajner */
+section.main > div {
+    background-color: rgba(0, 0, 0, 0.92);
+    padding: 30px;
+    border-radius: 20px;
+}
+
+/* Aby aj taby a ich obsah boli pekne na čiernom */
+div[data-testid="stTabs"] > div {
+    background-color: rgba(0, 0, 0, 0.92);
+    border-radius: 15px;
+    padding: 10px;
+}
+
+/* Odstránenie bielych okrajov */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
 def get_df(sheet):
     try:
         cache_bust = int(time.time())
@@ -384,5 +421,6 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
 
 
