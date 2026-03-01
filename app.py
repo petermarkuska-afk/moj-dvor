@@ -13,6 +13,8 @@ SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
 OTAZKA = "Súhlasíte s jednorazovým vkladom do fondu areálu?" 
 HLAVNE_HESLO = "Victory2026" 
 MESACNY_PREDPIS = 10.0 
+# TU SI ZMEŇ DÁTUM KONCA:
+KONIEC_ANKETY = "2026-03-15"
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
 
@@ -87,6 +89,22 @@ try:
 
     # --- T1: NÁSTENKA ---
     with tabs[0]:
+        # --- DOPLNENÝ ODPOČET DNÍ ---
+        try:
+            target_dt = datetime.strptime(KONIEC_ANKETY, "%Y-%m-%d")
+            diff = target_dt - datetime.now()
+            days_left = diff.days + 1
+            if diff.total_seconds() > 0:
+                st.markdown(f"""
+                <div style="background-color:#fff3cd; padding:15px; border-radius:10px; border-left:5px solid #ffc107; margin-bottom:20px;">
+                    <h4 style="color:#856404; margin-top:0;">🗳️ Prebieha hlasovanie</h4>
+                    <p style="color:#856404; margin-bottom:5px;"><b>Otázka:</b> {OTAZKA}</p>
+                    <p style="color:#d9534f; font-weight:bold; font-size:1.1em; margin-bottom:0;">⌛ Koniec o: {days_left} dní</p>
+                </div>
+                """, unsafe_allow_html=True)
+        except:
+            pass
+
         st.subheader("📢 Aktuálne oznamy")
         if not df_n.empty: st.table(df_n.iloc[::-1])
         st.divider()
@@ -167,18 +185,12 @@ try:
     # --- T4: ANKETA (S VÝSLEDKAMI) ---
     with tabs[3]:
         st.subheader(f"🗳️ {OTAZKA}")
-        
-        # Sčítanie hlasov zo stĺpca "Hlas" (predpokladáme hodnoty ÁNO/NIE alebo ZA/PROTI)
         if not df_h.empty:
             c_hl = next((c for c in df_h.columns if "HLAS" in c.upper()), "Hlas")
             c_ot_all = next((c for c in df_h.columns if "OTAZKA" in str(c).upper().replace("Á","A")), "Otázka")
-            
-            # Filtrujeme hlasy len pre aktuálnu otázku
             df_current_h = df_h[df_h[c_ot_all].astype(str).str.strip() == OTAZKA.strip()]
-            
             pocet_za = len(df_current_h[df_current_h[c_hl].astype(str).str.upper().str.contains("ANO|ZA")])
             pocet_proti = len(df_current_h[df_current_h[c_hl].astype(str).str.upper().str.contains("NIE|PROTI")])
-            
             st.write("### Aktuálny stav hlasovania")
             s1, s2, s3 = st.columns(3)
             s1.metric("ZA 👍", f"{pocet_za}")
@@ -223,10 +235,7 @@ try:
     # --- T5: MIESTNY POKEC ---
     with tabs[4]:
         st.subheader("💬 Verejná nástenka odkazov")
-        st.write("Chcete niečo odkázať susedom? Napíšte správu sem. Po schválení správcom sa zobrazí všetkým.")
-        
         nova_sprava = st.text_area("Vaša správa pre susedov:", placeholder="Napr. Susedia, v sobotu robíme guláš...", key="pokec_area")
-        
         if nova_sprava:
             dnes = datetime.now().strftime("%d.%m.%Y")
             o_subj = f"ODKAZ NA NASTENKU | VS:{u['vs']}"
@@ -234,19 +243,8 @@ try:
             o_subj_encoded = urllib.parse.quote(o_subj)
             o_body_encoded = urllib.parse.quote(telo_textu)
             mail_link = f"mailto:{MAIL_SPRAVCA}?subject={o_subj_encoded}&body={o_body_encoded}"
-            
             st.link_button("✉️ Otvoriť e-mail s týmto textom", mail_link, use_container_width=True)
-            with st.expander("Nefunguje vám automatický e-mail?"):
-                st.code(telo_textu, language="text")
-        else:
-            st.warning("Napíšte najprv text správy.")
         
-        st.markdown(f"""<div style="background-color:#f0fff4; padding:15px; border-radius:10px; border:2px solid #38a169; margin-top:20px;">
-            <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne odoslanie odkazu</h4>
-            <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
-            <b>Predmet:</b> ODKAZ NA NÁSTENKU | VS:{u['vs']}</p>
-        </div>""", unsafe_allow_html=True)
-
         st.divider()
         st.subheader("📌 Posledné správy")
         if not df_o.empty:
