@@ -91,7 +91,7 @@ def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
     suma_predpisov = df_k[mask]['Predpis'].sum()
 
     # 2. Suma všetkých platieb užívateľa (naprieč všetkými rokmi)
-    vs_p = next((c for c in df_platby.columns if "VS" in c.upper()), "VS")
+    vs_p = next((c for c in df_platby.columns if "vs" in c.upper()), "vs")
     df_platby[vs_p] = df_platby[vs_p].astype(str).str.strip().str.zfill(4)
     u_riadok = df_platby[df_platby[vs_p] == vs_uzivatela]
 
@@ -424,6 +424,7 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
 
 
 
