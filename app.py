@@ -4,7 +4,6 @@ import plotly.express as px
 import urllib.parse
 import time
 from datetime import datetime
-import base64
 
 # ==========================================
 # 1. KONFIGURÁCIA PORTÁLU
@@ -13,49 +12,12 @@ MAIL_SPRAVCA = "petermarkuska@gmail.com"
 SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
 OTAZKA = "Postavíme heliport?" 
 HLAVNE_HESLO = "Victory2026" 
+# KONFIGURÁCIA ZÁSTUPCOV (VS, ktorí uvidia prehľad svojho bloku)
+ZASTUPCOVIA = ["1007", "1105", "1201"] 
 # TU SI ZMEŇ DÁTUM KONCA (Formát RRRR-MM-DD):
 KONIEC_ANKETY = "2026-03-05"
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
-
-# ==========================================
-# POZADIE CEZ BASE64 (SPOĽAHLIVÉ RIEŠENIE)
-# ==========================================
-def get_base64_image(image_path):
-    with open(image_path, "rb") as img:
-        return base64.b64encode(img.read()).decode()
-
-img_base64 = get_base64_image("image_5.png")
-
-st.markdown(f"""
-<style>
-
-.stApp {{
-    background-image: url("data:image/png;base64,{img_base64}");
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
-}}
-
-section.main > div {{
-    background-color: rgba(0, 0, 0, 0.92);
-    padding: 30px;
-    border-radius: 20px;
-}}
-
-div[data-testid="stTabs"] > div {{
-    background-color: rgba(0, 0, 0, 0.92);
-    border-radius: 15px;
-    padding: 10px;
-}}
-
-.block-container {{
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-}}
-
-</style>
-""", unsafe_allow_html=True)
 
 def get_df(sheet):
     try:
@@ -286,36 +248,6 @@ try:
                     <p style="color:#2f855a; font-weight:bold;">Máte preplatok: {bilancia:.2f} €</p>
                 </div>""", unsafe_allow_html=True)
 
-        # ==========================================
-# QR PLATBA (SEPA / SPAYD – bez paysqr)
-# ==========================================
-st.divider()
-st.subheader("📲 Rýchla úhrada nedoplatku")
-
-suma = round(abs(bilancia), 2)
-vs = u['vs']
-
-try:
-    iban_clean = IBAN_FOND.replace(" ", "")
-    
-    spayd_string = (
-        f"SPD*1.0*ACC:{iban_clean}"
-        f"*AM:{suma:.2f}"
-        f"*CC:EUR"
-        f"*X-VS:{vs}"
-        f"*MSG:Nedoplatok VS {vs}"
-    )
-
-    qr_img = qrcode.make(spayd_string)
-    buffer = BytesIO()
-    qr_img.save(buffer, format="PNG")
-
-    st.image(buffer.getvalue(), width=250)
-    st.caption(f"IBAN: {iban_clean} | Suma: {suma:.2f} € | VS: {vs}")
-
-except Exception as e:
-    st.error(f"Chyba pri generovaní QR: {e}")
-        
        # --- DOPLNOK PRE ZÁSTUPCU (PREHĽAD BLOKU) ---
         # Kontrola prebieha DYNAMICKY podľa stĺpca 'Rola' v hárku Adresar
         je_zastupca_v_tabulke = False
@@ -452,9 +384,5 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
-
-
-
-
 
 
