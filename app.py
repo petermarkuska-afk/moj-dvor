@@ -233,27 +233,56 @@ try:
         </div>
         """, unsafe_allow_html=True)
 
-    # --- T2: FINANCIE ---
+    # --- T2: FINANCIE (OPRAVENÝ GRAF) ---
     with tabs[1]:
         if not df_p.empty:
-            stlpce_m = [c for c in df_p.columns if "/2" in c] # Podpora pre 25, 26, 27...
-            p_sum = df_p[stlpce_m].apply(pd.to_numeric, errors="coerce").fillna(0).sum().sum()
-            v_sum = pd.to_numeric(df_v["Suma"], errors="coerce").fillna(0).sum() if not df_v.empty else 0
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Fond celkom", f"{p_sum:.2f} €")
-            c2.metric("Výdavky celkom", f"{v_sum:.2f} €")
-            c3.metric("Zostatok", f"{(p_sum - v_sum):.2f} €")
+            # 1. Získame všetky stĺpce s lomkou (mesiace)
+            vsetky_mesiace = [c for c in df_p.columns if "/" in c]
+            
+            # 2. Vyfiltrujeme len tie, ktoré už nastali (po dnešok)
+            teraz = datetime.now()
+            stlpce_m = []
+            for c in vsetky_mesiace:
+                try:
+                    # Skúsime premeniť názov stĺpca (napr. 03/26) na dátum
+                    datum_stlpca = datetime.strptime(c, "%m/%y")
+                    if datum_stlpca <= teraz:
+                        stlpce_m.append(c)
+                except:
+                    continue
+            
+            # 3. Zoradíme mesiace chronologicky
+            stlpce_m.sort(key=lambda x: datetime.strptime(x, "%m/%y"))
 
-            if not df_v.empty and "Dátum" in df_v.columns:
-                df_v_graph = df_v.copy()
-                df_v_graph["temp_dt"] = pd.to_datetime(df_v_graph["Dátum"], dayfirst=True, errors='coerce')
-                # Logika kumulatívneho zostatku pre graf
-                v_mes = df_v_graph.groupby(df_v_graph["temp_dt"].dt.strftime('%m/%y'))["Suma"].sum().reindex(stlpce_m, fill_value=0)
-                p_mes = df_p[stlpce_m].apply(pd.to_numeric, errors="coerce").fillna(0).sum()
-                df_g = pd.DataFrame({"Mesiac": stlpce_m, "Zostatok": (p_mes.values - v_mes.values).cumsum()})
-                fig = px.area(df_g, x="Mesiac", y="Zostatok", title="Vývoj financií", template="plotly_dark")
-                fig.update_traces(line_color='#28a745', fillcolor='rgba(40, 167, 69, 0.3)')
-                st.plotly_chart(fig, use_container_width=True)
+            if stlpce_m:
+                # Výpočty pre metriky
+                p_sum = df_p[stlpce_m].apply(pd.to_numeric, errors="coerce").fillna(0).sum().sum()
+                v_sum = pd.to_numeric(df_v["Suma"], errors="coerce").fillna(0).sum() if not df_v.empty else 0
+                
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Fond celkom", f"{p_sum:.2f} €")
+                c2.metric("Výdavky celkom", f"{v_sum:.2f} €")
+                c3.metric("Zostatok", f"{(p_sum - v_sum):.2f} €")
+
+                # Príprava dát pre graf (len po aktuálny mesiac)
+                if not df_v.empty:
+                    df_v_graph = df_v.copy()
+                    df_v_graph["temp_dt"] = pd.to_datetime(df_v_graph["Dátum"], dayfirst=True, errors='coerce')
+                    
+                    # Suma výdavkov po mesiacoch
+                    v_mes = df_v_graph.groupby(df_v_graph["temp_dt"].dt.strftime('%m/%y'))["Suma"].sum().reindex(stlpce_m, fill_value=0)
+                    # Suma príjmov po mesiacoch
+                    p_mes = df_p[stlpce_m].apply(pd.to_numeric, errors="coerce").fillna(0).sum()
+                    
+                    # Výpočet kumulatívneho zostatku
+                    df_g = pd.DataFrame({
+                        "Mesiac": stlpce_m, 
+                        "Zostatok": (p_mes.values - v_mes.values).cumsum()
+                    })
+                    
+                    fig = px.area(df_g, x="Mesiac", y="Zostatok", title="Vývoj reálnych financií (k dnešnému dňu)", template="plotly_dark")
+                    fig.update_traces(line_color='#28a745', fillcolor='rgba(40, 167, 69, 0.3)')
+                    st.plotly_chart(fig, use_container_width=True)
 
         st.subheader("📜 Zoznam výdavkov")
         if not df_v.empty:
@@ -413,4 +442,5 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
 
