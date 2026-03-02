@@ -286,6 +286,36 @@ try:
                     <p style="color:#2f855a; font-weight:bold;">Máte preplatok: {bilancia:.2f} €</p>
                 </div>""", unsafe_allow_html=True)
 
+        # ==========================================
+# QR PLATBA (SEPA / SPAYD – bez paysqr)
+# ==========================================
+st.divider()
+st.subheader("📲 Rýchla úhrada nedoplatku")
+
+suma = round(abs(bilancia), 2)
+vs = u['vs']
+
+try:
+    iban_clean = IBAN_FOND.replace(" ", "")
+    
+    spayd_string = (
+        f"SPD*1.0*ACC:{iban_clean}"
+        f"*AM:{suma:.2f}"
+        f"*CC:EUR"
+        f"*X-VS:{vs}"
+        f"*MSG:Nedoplatok VS {vs}"
+    )
+
+    qr_img = qrcode.make(spayd_string)
+    buffer = BytesIO()
+    qr_img.save(buffer, format="PNG")
+
+    st.image(buffer.getvalue(), width=250)
+    st.caption(f"IBAN: {iban_clean} | Suma: {suma:.2f} € | VS: {vs}")
+
+except Exception as e:
+    st.error(f"Chyba pri generovaní QR: {e}")
+        
        # --- DOPLNOK PRE ZÁSTUPCU (PREHĽAD BLOKU) ---
         # Kontrola prebieha DYNAMICKY podľa stĺpca 'Rola' v hárku Adresar
         je_zastupca_v_tabulke = False
@@ -422,6 +452,7 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
 
 
 
