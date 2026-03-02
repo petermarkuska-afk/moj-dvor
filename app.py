@@ -91,12 +91,7 @@ def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
     suma_predpisov = df_k[mask]['Predpis'].sum()
 
     # 2. Suma všetkých platieb užívateľa (naprieč všetkými rokmi)
-    vs_p = next((c for c in df_platby.columns if "VS" in str(c).upper()), None)
-
-if vs_p is None:
-    st.error("V hárku Platby neexistuje stĺpec s VS.")
-    return 0.0, 0.0, 0.0  # vo funkcii
-else:
+    vs_p = next((c for c in df_platby.columns if "VS" in c.upper()), "VS")
     df_platby[vs_p] = df_platby[vs_p].astype(str).str.strip().str.zfill(4)
     u_riadok = df_platby[df_platby[vs_p] == vs_uzivatela]
 
