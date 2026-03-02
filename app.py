@@ -91,19 +91,20 @@ def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
     suma_predpisov = df_k[mask]['Predpis'].sum()
 
     # 2. Suma všetkých platieb užívateľa (naprieč všetkými rokmi)
-    vs_p = next((c for c in df_platby.columns if "VS" in c.upper()), "VS")
+    # Namiesto hľadania podľa názvu "VS" zoberieme proste prvý stĺpec [0]
+    vs_p = df_platby.columns[0] 
+    
+    # Preformátujeme ho na text a pridáme nuly na začiatok (101 -> 0101), aby to sedelo s loginom
     df_platby[vs_p] = df_platby[vs_p].astype(str).str.strip().str.zfill(4)
-    u_riadok = df_platby[df_platby[vs_p] == vs_uzivatela]
+    
+    # Vyčistíme aj hľadané VS užívateľa na 4 cifry
+    target_vs = str(vs_uzivatela).strip().zfill(4)
+    
+    u_riadok = df_platby[df_platby[vs_p] == target_vs]
 
     if u_riadok.empty:
         return 0.0, round(suma_predpisov, 2), round(-suma_predpisov, 2)
-
-    # Vyberieme všetky stĺpce, ktoré obsahujú lomku (01/26, 05/27 atď.)
-    stlpce_historie = [c for c in df_platby.columns if "/" in c]
-    suma_uhrad = pd.to_numeric(u_riadok.iloc[0][stlpce_historie], errors='coerce').fillna(0).sum()
-
-    return round(suma_uhrad, 2), round(suma_predpisov, 2), round(suma_uhrad - suma_predpisov, 2)
-
+        
 # ==========================================
 # 2. AUTENTIFIKÁCIA A OVERENIE DLHU
 # ==========================================
@@ -424,6 +425,7 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
 
 
 
