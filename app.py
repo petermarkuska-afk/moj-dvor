@@ -64,7 +64,7 @@ def get_df(sheet):
         cache_bust = int(time.time())
         url = f"https://docs.google.com/spreadsheets/d/{SID}/gviz/tq?tqx=out:csv&sheet={sheet}&cb={cache_bust}"
         df = pd.read_csv(url, encoding="utf-8-sig")
-        df.columns = [str(c).strip() for c in df.columns]
+        df.columns = [str(c).strip().lower() for c in df.columns]
         return df.dropna(how='all')
     except:
         return pd.DataFrame()
@@ -424,6 +424,7 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
 
 
 
