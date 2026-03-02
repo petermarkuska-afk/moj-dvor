@@ -98,25 +98,7 @@ def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
 
     return round(suma_uhrad, 2), round(suma_predpisov, 2), round(suma_uhrad - suma_predpisov, 2)
 
-# ==========================================
-# 2. AUTENTIFIKÁCIA A OVERENIE IDENTITY
-# ==========================================
-if "auth_pass" not in st.session_state: st.session_state["auth_pass"] = False
-if "user_data" not in st.session_state: st.session_state["user_data"] = None
-if "debt_confirmed" not in st.session_state: st.session_state["debt_confirmed"] = False
-
-# KROK 1: Hlavné heslo (vstup do brány)
-if not st.session_state["auth_pass"]:
-    st.markdown("<h2 style='text-align: center;'>🔐 Vstup do portálu</h2>", unsafe_allow_html=True)
-    heslo_vstup = st.text_input("Zadajte prístupové heslo:", type="password")
-    if st.button("Pokračovať", use_container_width=True):
-        if heslo_vstup == HLAVNE_HESLO:
-            st.session_state["auth_pass"] = True
-            st.rerun()
-        else: st.error("Nesprávne heslo!")
-    st.stop()
-
-# KROK 2: VS Identifikácia + PIN
+# KROK 2: VS + PIN Identifikácia
 if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
     st.markdown("<h2 style='text-align: center;'>🔑 Identifikácia majiteľa</h2>", unsafe_allow_html=True)
     
@@ -129,17 +111,22 @@ if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
     if st.button("Prihlásiť sa", use_container_width=True):
         df_a = get_df("Adresar")
         if not df_a.empty:
+            # Hľadáme stĺpce (ignorujeme diakritiku a veľké písmená)
             vs_col = next((c for c in df_a.columns if "VS" in c.upper()), None)
-            pin_col = next((c for c in df_a.columns if "PIN" in c.upper()), None) # Musíš mať v tabuľke stĺpec PIN
+            pin_col = next((c for c in df_a.columns if "PIN" in c.upper()), None)
             
             if vs_col and pin_col:
-                df_a[vs_col] = df_a[vs_col].astype(str).str.strip().str.zfill(4)
-                df_a[pin_col] = df_a[pin_col].astype(str).str.strip()
+                # --- ROBUSTNÁ NORMALIZÁCIA ---
+                # VS: zobrať ako string, očistiť od .0, orezať medzery a doplniť nuly na 4 miesta
+                df_a[vs_col] = df_a[vs_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().str.zfill(4)
+                
+                # PIN: zobrať ako string, očistiť od .0 (častá chyba pri číslach v pandas) a orezať medzery
+                df_a[pin_col] = df_a[pin_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
                 
                 target_vs = vs_vstup.strip().zfill(4)
                 target_pin = pin_vstup.strip()
                 
-                # Overenie VS aj PINu zároveň
+                # Hľadanie zhody
                 user_row = df_a[(df_a[vs_col] == target_vs) & (df_a[pin_col] == target_pin)]
                 
                 if not user_row.empty:
@@ -148,9 +135,16 @@ if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
                         "meno": str(user_row.iloc[0].get("Meno a priezvisko", "Neznámy")),
                         "email": str(user_row.iloc[0].get("Email", "Neuvedený"))
                     }
+                    st.success("Prihlásenie úspešné!")
+                    time.sleep(0.5)
                     st.rerun()
-                else: st.error("Kombinácia VS a PIN kódu je nesprávna.")
-            else: st.error("Chyba v databáze: Stĺpec VS alebo PIN nebol nájdený.")
+                else:
+                    # Malá pomoc pre teba počas testovania:
+                    st.error("Nesprávne VS alebo PIN.")
+                    # Ak chceš vidieť, čo máš v tabuľke (len pre testovanie, potom to zmaž!):
+                    # st.write(f"Hľadané: VS={target_vs}, PIN={target_pin}")
+            else:
+                st.error(f"Chyba: V tabuľke sa nenašli stĺpce 'VS' alebo 'PIN'. Nájdené stĺpce: {list(df_a.columns)}")
     st.stop()
 
 # Krok 3: Kontrola nedoplatku (Interstitial)
@@ -419,3 +413,4 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
