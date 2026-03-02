@@ -14,7 +14,6 @@ SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
 OTAZKA = "Postavíme heliport?" 
 HLAVNE_HESLO = "Victory2026" 
 # KONFIGURÁCIA ZÁSTUPCOV (VS, ktorí uvidia prehľad svojho bloku)
-ZASTUPCOVIA = ["1007", "1105", "1201"] 
 # TU SI ZMEŇ DÁTUM KONCA (Formát RRRR-MM-DD):
 KONIEC_ANKETY = "2026-03-05"
 
@@ -424,6 +423,7 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
 
 
 
