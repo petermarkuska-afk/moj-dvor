@@ -7,82 +7,78 @@ from datetime import datetime
 import base64
 
 # ==========================================
-# 1. KONFIGURÁCIA (Načítanie zo Secrets)
+# 1. KONFIGURÁCIA PORTÁLU
 # ==========================================
-# Streamlit si ich automaticky vytiahne z toho, čo ste zadali v Settings -> Secrets
-MAIL_SPRAVCA = st.secrets["MAIL_SPRAVCA"]
-SID = st.secrets["SID"]
-HLAVNE_HESLO = st.secrets["HLAVNE_HESLO"]
-
+MAIL_SPRAVCA = "petermarkuska@gmail.com"
+SID = "13gFwOsSO0Di5sL_P-mBXDhmxu3K3W6Mcmcv3aoaXSgY"
 OTAZKA = "Postavíme heliport?" 
+HLAVNE_HESLO = "Victory2026" 
+# KONFIGURÁCIA ZÁSTUPCOV (VS, ktorí uvidia prehľad svojho bloku)
+# TU SI ZMEŇ DÁTUM KONCA (Formát RRRR-MM-DD):
 KONIEC_ANKETY = "2026-03-05"
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
 
-# ... (funkcie get_base64_image, get_df, vypocitaj_bilanciu zostávajú rovnaké) ...
-
 # ==========================================
-# 2. AUTENTIFIKÁCIA (Vylepšená s PINom)
+# POZADIE CEZ BASE64 (SPOĽAHLIVÉ RIEŠENIE)
 # ==========================================
-if "auth_pass" not in st.session_state: st.session_state["auth_pass"] = False
-if "user_data" not in st.session_state: st.session_state["user_data"] = None
-if "debt_confirmed" not in st.session_state: st.session_state["debt_confirmed"] = False
+def get_base64_image(image_path):
+    with open(image_path, "rb") as img:
+        return base64.b64encode(img.read()).decode()
 
-# KROK A: Hlavné vstupné heslo (brána do appky)
-if not st.session_state["auth_pass"]:
-    st.markdown("<h2 style='text-align: center;'>🔐 Vstup do portálu</h2>", unsafe_allow_html=True)
-    heslo_vstup = st.text_input("Zadajte prístupové heslo:", type="password")
-    if st.button("Pokračovať", use_container_width=True):
-        if heslo_vstup == HLAVNE_HESLO:
-            st.session_state["auth_pass"] = True
-            st.rerun()
-        else:
-            st.error("Nesprávne heslo!")
-    st.stop()
+img_base64 = get_base64_image("image_5.png")
 
-# KROK B: Identifikácia konkrétneho majiteľa (VS + PIN)
-if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
-    st.markdown("<h2 style='text-align: center;'>🔑 Identifikácia majiteľa</h2>", unsafe_allow_html=True)
-    
-    # Dve polia vedľa seba
-    c1, c2 = st.columns(2)
-    with c1:
-        vs_vstup = st.text_input("Variabilný symbol (VS):", placeholder="Napr. 1007")
-    with c2:
-        pin_vstup = st.text_input("Váš osobný PIN:", type="password", placeholder="****")
-        
-    if st.button("Prihlásiť sa", use_container_width=True):
-        df_a = get_df("Adresar")
-        if not df_a.empty:
-            # Hľadáme správne názvy stĺpcov
-            vs_col = next((c for c in df_a.columns if "VS" in c.upper()), None)
-            pin_col = next((c for c in df_a.columns if "PIN" in c.upper()), None)
-            
-            if vs_col and pin_col:
-                # Očistenie dát
-                df_a[vs_col] = df_a[vs_col].astype(str).str.strip().str.zfill(4)
-                df_a[pin_col] = df_a[pin_col].astype(str).str.strip()
-                
-                vystup_vs = vs_vstup.strip().zfill(4)
-                vystup_pin = pin_vstup.strip()
+st.markdown(f"""
+<style>
 
-                # Overenie kombinácie VS a PIN
-                user_row = df_a[(df_a[vs_col] == vystup_vs) & (df_a[pin_col] == vystup_pin)]
-                
-                if not user_row.empty:
-                    st.session_state["user_data"] = {
-                        "vs": vystup_vs,
-                        "meno": str(user_row.iloc[0].get("Meno a priezvisko", "Neznámy")),
-                        "email": str(user_row.iloc[0].get("Email", "Neuvedený"))
-                    }
-                    st.rerun()
-                else:
-                    st.error("Kombinácia VS a PIN kódu nie je správna.")
-            else:
-                st.error("V databáze chýba stĺpec 'VS' alebo 'PIN'.")
-    st.stop()
+.stApp {{
+    background-image: url("data:image/png;base64,{img_base64}");
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+}}
 
-# ... (zvyšok kódu pre kontrolu nedoplatku a zobrazenie portálu) ...
+section.main > div {{
+    background-color: rgba(0, 0, 0, 0.92);
+    padding: 30px;
+    border-radius: 20px;
+}}
+
+div[data-testid="stTabs"] > div {{
+    background-color: rgba(0, 0, 0, 0.92);
+    border-radius: 15px;
+    padding: 10px;
+}}
+
+.block-container {{
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}}
+
+</style>
+""", unsafe_allow_html=True)
+
+def get_df(sheet):
+    try:
+        cache_bust = int(time.time())
+        url = f"https://docs.google.com/spreadsheets/d/{SID}/gviz/tq?tqx=out:csv&sheet={sheet}&cb={cache_bust}"
+        df = pd.read_csv(url)
+        df.columns = [str(c).strip() for c in df.columns]
+        return df.dropna(how='all')
+    except:
+        return pd.DataFrame()
+
+def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
+    """
+    Nová logika: Sčíta všetky predpisy z hárka Konfiguracia po aktuálny mesiac
+    a odpočíta sumu všetkých stĺpcov s lomkou (napr. /26, /27) z hárka Platby.
+    """
+    teraz = datetime.now()
+    akt_m = teraz.month
+    akt_r = teraz.year
+
+    if df_konfig.empty:
+        return 0.0, 0.0, 0.0
 
     # 1. Suma predpisov z Konfigurácie (história + dnes)
     df_k = df_konfig.copy()
@@ -427,7 +423,6 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
-
 
 
 
