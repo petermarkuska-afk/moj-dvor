@@ -5,7 +5,7 @@ import urllib.parse
 import time
 from datetime import datetime
 import base64
-print(df.columns.tolist())
+
 
 # ==========================================
 # 1. KONFIGURÁCIA PORTÁLU
@@ -425,6 +425,7 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
 
 
 
