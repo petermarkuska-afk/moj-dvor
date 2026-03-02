@@ -70,22 +70,18 @@ def get_df(sheet):
         return pd.DataFrame()
 
 def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
-    if df_konfig.empty or df_platby.empty:
-        return 0.0, 0.0, 0.0
-
-    # 1. Dynamické hľadanie stĺpca s Variabilným symbolom
-    # Hľadáme stĺpec, ktorý obsahuje "VS" (napr. "Identifikácia VS")
-    vs_p = next((c for c in df_platby.columns if "VS" in str(c).upper()), None)
-    
-    if vs_p is None:
-        # Ak by stĺpec s VS vôbec neexistoval, vrátime nuly, aby appka nespadla
-        return 0.0, 0.0, 0.0
-
-    # 2. Výpočet predpisov (podľa konfigurácie)
+    """
+    Nová logika: Sčíta všetky predpisy z hárka Konfiguracia po aktuálny mesiac
+    a odpočíta sumu všetkých stĺpcov s lomkou (napr. /26, /27) z hárka Platby.
+    """
     teraz = datetime.now()
     akt_m = teraz.month
     akt_r = teraz.year
-    
+
+    if df_konfig.empty:
+        return 0.0, 0.0, 0.0
+
+    # 1. Suma predpisov z Konfigurácie (história + dnes)
     df_k = df_konfig.copy()
     df_k['Mesiac'] = pd.to_numeric(df_k['Mesiac'], errors='coerce')
     df_k['Rok'] = pd.to_numeric(df_k['Rok'], errors='coerce')
@@ -94,22 +90,20 @@ def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
     mask = (df_k['Rok'] < akt_r) | ((df_k['Rok'] == akt_r) & (df_k['Mesiac'] <= akt_m))
     suma_predpisov = df_k[mask]['Predpis'].sum()
 
-    # 3. Vyhľadanie riadku používateľa
-    df_p_copy = df_platby.copy()
-    # Vyčistíme VS (odstránime medzery a nuly na začiatku)
-    df_p_copy[vs_p] = df_p_copy[vs_p].astype(str).str.strip().str.lstrip('0')
-    target_vs = str(vs_uzivatela).strip().lstrip('0')
-    
-    u_riadok = df_p_copy[df_p_copy[vs_p] == target_vs]
+    # 2. Suma všetkých platieb užívateľa (naprieč všetkými rokmi)
+    vs_p = next((c for c in df_platby.columns if "VS" in c.upper()), "VS")
+    df_platby[vs_p] = df_platby[vs_p].astype(str).str.strip().str.zfill(4)
+    u_riadok = df_platby[df_platby[vs_p] == vs_uzivatela]
 
     if u_riadok.empty:
         return 0.0, round(suma_predpisov, 2), round(-suma_predpisov, 2)
 
-    # 4. Suma úhrad (spočíta všetky stĺpce, ktoré obsahujú lomku "/")
-    stlpce_historie = [c for c in df_platby.columns if "/" in str(c)]
+    # Vyberieme všetky stĺpce, ktoré obsahujú lomku (01/26, 05/27 atď.)
+    stlpce_historie = [c for c in df_platby.columns if "/" in c]
     suma_uhrad = pd.to_numeric(u_riadok.iloc[0][stlpce_historie], errors='coerce').fillna(0).sum()
 
     return round(suma_uhrad, 2), round(suma_predpisov, 2), round(suma_uhrad - suma_predpisov, 2)
+
 # ==========================================
 # 2. AUTENTIFIKÁCIA A OVERENIE DLHU
 # ==========================================
@@ -430,7 +424,6 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
-
 
 
 
