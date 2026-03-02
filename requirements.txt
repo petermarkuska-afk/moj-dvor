@@ -2,7 +2,9 @@ streamlit
 pandas
 plotly
 segno
+paysqr
 qrcode[pil]
+
 
 
 
