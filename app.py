@@ -71,15 +71,6 @@ def get_df(sheet):
 
 def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
     """
-    Nová logika: Sčíta všetky predpisy z hárka Konfiguracia po aktuálny mesiac
-    a odpočíta sumu všetkých stĺpcov s lomkou (napr. /26, /27) z hárka Platby.
-    """
-    teraz = datetime.now()
-    akt_m = teraz.month
-    akt_r = teraz.year
-
-    def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
-    """
     Sčíta predpisy z hárka Konfiguracia po aktuálny mesiac
     a odpočíta sumu všetkých stĺpcov s lomkou (napr. 01/26) z hárka Platby.
     """
@@ -117,12 +108,6 @@ def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
 
     # 3. Suma úhrad (stĺpce s lomkou napr. 03/26)
     stlpce_historie = [c for c in df_platby.columns if "/" in str(c)]
-    suma_uhrad = pd.to_numeric(u_riadok.iloc[0][stlpce_historie], errors='coerce').fillna(0).sum()
-
-    return round(suma_uhrad, 2), round(suma_predpisov, 2), round(suma_uhrad - suma_predpisov, 2)
-
-    # Vyberieme všetky stĺpce, ktoré obsahujú lomku (01/26, 05/27 atď.)
-    stlpce_historie = [c for c in df_platby.columns if "/" in c]
     suma_uhrad = pd.to_numeric(u_riadok.iloc[0][stlpce_historie], errors='coerce').fillna(0).sum()
 
     return round(suma_uhrad, 2), round(suma_predpisov, 2), round(suma_uhrad - suma_predpisov, 2)
@@ -447,7 +432,6 @@ except Exception as e:
     st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
-
 
 
 
