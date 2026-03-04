@@ -141,21 +141,31 @@ if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
                 pin_col = next((c for c in df_a.columns if "PIN" in str(c).upper()), None)
                 
                 if vs_col and pin_col:
-                    # Očistenie dát v tabuľke
-                    df_a[vs_col] = df_a[vs_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().str.zfill(4)
-                    df_a[pin_col] = df_a[pin_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+                    # POMOCNÁ FUNKCIA: Odstráni nuly na začiatku a desatinné miesta (.0)
+                    def normalizuj(val):
+                        s = str(val).split('.')[0].strip()
+                        return s.lstrip('0') if s not in ['0', ''] else '0'
+
+                    target_vs_norm = normalizuj(vs_vstup)
+                    target_pin_norm = normalizuj(pin_vstup)
                     
-                    target_vs = vs_vstup.strip().zfill(4)
-                    target_pin = pin_vstup.strip()
+                    # Prehľadáme tabuľku riadok po riadku s normalizovanými hodnotami
+                    user_found_row = None
+                    for _, row in df_a.iterrows():
+                        db_vs_norm = normalizuj(row[vs_col])
+                        db_pin_norm = normalizuj(row[pin_col])
+                        
+                        if db_vs_norm == target_vs_norm and db_pin_norm == target_pin_norm:
+                            user_found_row = row
+                            break
                     
-                    # Vyhľadanie konkrétneho užívateľa
-                    user_row = df_a[(df_a[vs_col] == target_vs) & (df_a[pin_col] == target_pin)]
-                    
-                    if not user_row.empty:
+                    if user_found_row is not None:
+                        # Do session state uložíme VS v peknom formáte 0101 (zfill 4)
+                        final_vs = str(user_found_row[vs_col]).split('.')[0].strip().zfill(4)
                         st.session_state["user_data"] = {
-                            "vs": target_vs,
-                            "meno": str(user_row.iloc[0].get("Meno a priezvisko", "Neznámy")),
-                            "email": str(user_row.iloc[0].get("Email", "Neuvedený"))
+                            "vs": final_vs,
+                            "meno": str(user_found_row.get("Meno a priezvisko", "Neznámy")),
+                            "email": str(user_found_row.get("Email", "Neuvedený"))
                         }
                         st.rerun()
                     else:
