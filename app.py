@@ -134,30 +134,38 @@ if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
         pin_vstup = st.text_input("Váš osobný PIN:", type="password", placeholder="****")
 
     if st.button("Prihlásiť sa", use_container_width=True):
-        df_a = get_df("Adresar", SID)
-        if not df_a.empty:
-            vs_col = next((c for c in df_a.columns if "VS" in c.upper()), None)
-            pin_col = next((c for c in df_a.columns if "PIN" in c.upper()), None)
-            
-            if vs_col and pin_col:
-                # Očistenie dát v tabuľke od .0 a medzier
-                df_a[vs_col] = df_a[vs_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().str.zfill(4)
-                df_a[pin_col] = df_a[pin_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+        if vs_vstup and pin_vstup:
+            df_a = get_df("Adresar", SID)
+            if not df_a.empty:
+                vs_col = next((c for c in df_a.columns if "VS" in str(c).upper()), None)
+                pin_col = next((c for c in df_a.columns if "PIN" in str(c).upper()), None)
                 
-                target_vs = vs_vstup.strip().zfill(4)
-                target_pin = pin_vstup.strip()
-                
-                user_row = df_a[(df_a[vs_col] == target_vs) & (df_a[pin_col] == target_pin)]
-                
-                if not user_row.empty:
-                    st.session_state["user_data"] = {
-                        "vs": target_vs,
-                        "meno": str(user_row.iloc[0].get("Meno a priezvisko", "Neznámy")),
-                        "email": str(user_row.iloc[0].get("Email", "Neuvedený"))
-                    }
-                    st.rerun()
-                else: st.error("Kombinácia VS a PIN kódu je nesprávna.")
-            else: st.error("V tabuľke 'Adresar' chýba stĺpec VS alebo PIN.")
+                if vs_col and pin_col:
+                    # Očistenie dát v tabuľke
+                    df_a[vs_col] = df_a[vs_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().str.zfill(4)
+                    df_a[pin_col] = df_a[pin_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+                    
+                    target_vs = vs_vstup.strip().zfill(4)
+                    target_pin = pin_vstup.strip()
+                    
+                    # Vyhľadanie konkrétneho užívateľa
+                    user_row = df_a[(df_a[vs_col] == target_vs) & (df_a[pin_col] == target_pin)]
+                    
+                    if not user_row.empty:
+                        st.session_state["user_data"] = {
+                            "vs": target_vs,
+                            "meno": str(user_row.iloc[0].get("Meno a priezvisko", "Neznámy")),
+                            "email": str(user_row.iloc[0].get("Email", "Neuvedený"))
+                        }
+                        st.rerun()
+                    else:
+                        st.error("Kombinácia VS a PIN kódu je nesprávna.")
+                else:
+                    st.error("Chyba štruktúry tabuľky Adresár.")
+            else:
+                st.error("Nepodarilo sa načítať dáta z Adresára.")
+        else:
+            st.warning("Prosím, vyplňte VS aj PIN.")
     st.stop()
 
 # --- POISTKA PROTI CHYBE PRI ODHLÁSENÍ ---
@@ -252,17 +260,17 @@ try:
         </div>
         """, unsafe_allow_html=True)
 
-    # --- T2: FINANCIE (OPRAVENÝ GRAF) ---
+    # --- T2: FINANCIE ---
     with tabs[1]:
         if not df_p.empty:
-            vsetky_m = [c for c in df_p.columns if "/" in c]
+            vsetky_m = [c for c in df_p.columns if "/" in str(c)]
             teraz = datetime.now()
             stlpce_m = []
             for c in vsetky_m:
                 try:
-                    if datetime.strptime(c, "%m/%y") <= teraz: stlpce_m.append(c)
+                    if datetime.strptime(str(c), "%m/%y") <= teraz: stlpce_m.append(c)
                 except: continue
-            stlpce_m.sort(key=lambda x: datetime.strptime(x, "%m/%y"))
+            stlpce_m.sort(key=lambda x: datetime.strptime(str(x), "%m/%y"))
 
             if stlpce_m:
                 p_sum = df_p[stlpce_m].apply(pd.to_numeric, errors="coerce").fillna(0).sum().sum()
@@ -290,7 +298,7 @@ try:
     # --- T3: MOJE PLATBY ---
     with tabs[2]:
         st.subheader(f"💰 Moje platby (VS: {u['vs']})")
-        vs_p = next((c for c in df_p.columns if "VS" in c.upper()), "VS")
+        vs_p = next((c for c in df_p.columns if "VS" in str(c).upper()), "VS")
         df_p[vs_p] = df_p[vs_p].astype(str).str.replace(r'\.0$', '', regex=True).str.zfill(4)
         moje_riadky = df_p[df_p[vs_p] == u['vs']]
 
@@ -314,8 +322,8 @@ try:
         je_zastupca_v_tabulke = False
         df_a = get_df("Adresar", SID)
         if not df_a.empty:
-            vs_col_a = next((c for c in df_a.columns if "VS" in c.upper()), "VS")
-            rola_col = next((c for c in df_a.columns if "ROLA" in c.upper()), None)
+            vs_col_a = next((c for c in df_a.columns if "VS" in str(c).upper()), "VS")
+            rola_col = next((c for c in df_a.columns if "ROLA" in str(c).upper()), None)
             if rola_col:
                 u_row = df_a[df_a[vs_col_a].astype(str).str.replace(r'\.0$', '', regex=True).str.zfill(4) == u['vs']]
                 if not u_row.empty and "ZASTUPCA" in str(u_row.iloc[0][rola_col]).upper():
@@ -343,7 +351,7 @@ try:
         else:
             st.subheader(f"🗳️ {OTAZKA}")
             if not df_h.empty:
-                c_hl = next((c for c in df_h.columns if "HLAS" in c.upper()), "Hlas")
+                c_hl = next((c for c in df_h.columns if "HLAS" in str(c).upper()), "Hlas")
                 c_ot_all = next((c for c in df_h.columns if "OTAZKA" in str(c).upper().replace("Á","A")), "Otázka")
                 df_curr = df_h[df_h[c_ot_all].astype(str).str.strip() == OTAZKA.strip()]
                 pocet_za = len(df_curr[df_curr[c_hl].astype(str).str.upper().str.contains("ANO|ZA")])
@@ -355,7 +363,7 @@ try:
 
             st.divider()
             v_cist = u['vs'].lstrip('0')
-            c_vs_h = next((c for c in df_h.columns if "VS" in c.upper()), "VS")
+            c_vs_h = next((c for c in df_h.columns if "VS" in str(c).upper()), "VS")
             c_ot_h = next((c for c in df_h.columns if "OTAZKA" in str(c).upper().replace("Á","A")), "Otázka")
             uz_hlasoval = False
             if not df_h.empty and c_ot_h in df_h.columns:
@@ -381,7 +389,7 @@ try:
         st.divider()
         st.subheader("📜 História mojich hlasovaní")
         if not df_h.empty:
-            c_vs_hist = next((c for c in df_h.columns if "VS" in c.upper()), "VS")
+            c_vs_hist = next((c for c in df_h.columns if "VS" in str(c).upper()), "VS")
             df_h[c_vs_hist] = df_h[c_vs_hist].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().str.zfill(4)
             moje_h = df_h[df_h[c_vs_hist] == u['vs']]
             if not moje_h.empty:
@@ -408,8 +416,7 @@ try:
                     st.info(row.get('Odkaz', 'Bez textu'))
 
 except Exception as e:
-    if st.session_state["user_data"] is not None:
+    if "user_data" in st.session_state and st.session_state["user_data"] is not None:
         st.error(f"Systémová informácia: {e}")
 
-st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
-
+st.markdown(f"<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© {datetime.now().year} Správa areálu Victory Port</p>", unsafe_allow_html=True)
