@@ -26,7 +26,7 @@ st.set_page_config(page_title="Správa areálu Victory Port", layout="centered",
 # POMOCNÉ FUNKCIE (CACHE A DÁTA)
 # ==========================================
 
-@st.cache_data(ttl=600)  # Dáta ostanú v pamäti 10 minút pre bleskovú rýchlosť
+@st.cache_data(ttl=10)  # Dáta ostanú v pamäti 10 minút pre bleskovú rýchlosť
 def get_df(sheet, spreadsheet_id):
     try:
         # Pri cachovaní nepoužívame dynamický cache_bust v URL
@@ -412,4 +412,5 @@ except Exception as e:
         st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
 
