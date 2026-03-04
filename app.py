@@ -29,7 +29,6 @@ st.set_page_config(page_title="Správa areálu Victory Port", layout="centered",
 @st.cache_data(ttl=600)  # Dáta ostanú v pamäti 10 minút pre bleskovú rýchlosť
 def get_df(sheet, spreadsheet_id):
     try:
-        # Pri cachovaní nepoužívame dynamický cache_bust v URL
         url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/gviz/tq?tqx=out:csv&sheet={sheet}"
         df = pd.read_csv(url)
         df.columns = [str(c).strip() for c in df.columns]
@@ -52,7 +51,6 @@ def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
     if df_konfig.empty:
         return 0.0, 0.0, 0.0
 
-    # 1. Suma predpisov z Konfigurácie (história + dnes)
     df_k = df_konfig.copy()
     df_k['Mesiac'] = pd.to_numeric(df_k['Mesiac'], errors='coerce')
     df_k['Rok'] = pd.to_numeric(df_k['Rok'], errors='coerce')
@@ -61,9 +59,7 @@ def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
     mask = (df_k['Rok'] < akt_r) | ((df_k['Rok'] == akt_r) & (df_k['Mesiac'] <= akt_m))
     suma_predpisov = df_k[mask]['Predpis'].sum()
 
-    # 2. Suma všetkých platieb užívateľa
     vs_p = next((c for c in df_platby.columns if "VS" in c.upper()), "VS")
-    # Čistenie VS od .0 a doplnenie na 4 cifry
     df_platby[vs_p] = df_platby[vs_p].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().str.zfill(4)
     u_riadok = df_platby[df_platby[vs_p] == vs_uzivatela]
 
@@ -123,7 +119,7 @@ if not st.session_state["auth_pass"]:
         else: st.error("Nesprávne heslo!")
     st.stop()
 
-# KROK 2: VS + PIN Identifikácia
+# KROK 2: VS + PIN Identifikácia (OPRAVENÁ PRE 0101)
 if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
     st.markdown("<h2 style='text-align: center;'>🔑 Identifikácia majiteľa</h2>", unsafe_allow_html=True)
     
@@ -141,38 +137,44 @@ if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
                 pin_col = next((c for c in df_a.columns if "PIN" in str(c).upper()), None)
                 
                 if vs_col and pin_col:
-                    # Očistenie dát v tabuľke
-                    df_a[vs_col] = df_a[vs_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().str.zfill(4)
-                    df_a[pin_col] = df_a[pin_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+                    # Funkcia na normalizáciu hodnôt (odstráni .0 a úvodné nuly pre porovnanie)
+                    def cisti_hodnotu(val):
+                        s = str(val).split('.')[0].strip()
+                        return s.lstrip('0') if s != '0' and s != '' else s
+
+                    target_vs_clean = cisti_hodnotu(vs_vstup)
+                    target_pin_clean = cisti_hodnotu(pin_vstup)
                     
-                    target_vs = vs_vstup.strip().zfill(4)
-                    target_pin = pin_vstup.strip()
+                    user_found = None
+                    for _, row in df_a.iterrows():
+                        db_vs = cisti_hodnotu(row[vs_col])
+                        db_pin = cisti_hodnotu(row[pin_col])
+                        
+                        if db_vs == target_vs_clean and db_pin == target_pin_clean:
+                            user_found = row
+                            break
                     
-                    # Vyhľadanie konkrétneho užívateľa
-                    user_row = df_a[(df_a[vs_col] == target_vs) & (df_a[pin_col] == target_pin)]
-                    
-                    if not user_row.empty:
+                    if user_found is not None:
                         st.session_state["user_data"] = {
-                            "vs": target_vs,
-                            "meno": str(user_row.iloc[0].get("Meno a priezvisko", "Neznámy")),
-                            "email": str(user_row.iloc[0].get("Email", "Neuvedený"))
+                            "vs": str(user_found[vs_col]).split('.')[0].strip().zfill(4),
+                            "meno": str(user_found.get("Meno a priezvisko", "Neznámy")),
+                            "email": str(user_found.get("Email", "Neuvedený"))
                         }
                         st.rerun()
                     else:
                         st.error("Kombinácia VS a PIN kódu je nesprávna.")
                 else:
-                    st.error("Chyba štruktúry tabuľky Adresár.")
+                    st.error("V tabuľke 'Adresar' chýba stĺpec VS alebo PIN.")
             else:
                 st.error("Nepodarilo sa načítať dáta z Adresára.")
         else:
             st.warning("Prosím, vyplňte VS aj PIN.")
     st.stop()
 
-# --- POISTKA PROTI CHYBE PRI ODHLÁSENÍ ---
 if st.session_state["user_data"] is None:
     st.stop()
 
-# Krok 3: Kontrola nedoplatku (Interstitial)
+# Krok 3: Kontrola nedoplatku
 if not st.session_state["debt_confirmed"]:
     u = st.session_state["user_data"]
     df_p, df_k = get_df("Platby", SID), get_df("Konfiguracia", SID)
@@ -237,7 +239,6 @@ try:
                         <h4 style="color:#856404; margin-top:0;">🗳️ Prebieha hlasovanie</h4>
                         <p style="color:#2d3748; margin-bottom:5px;"><b>Otázka:</b> {OTAZKA}</p>
                         <p style="color:#bd2130; font-weight:bold; font-size:1.1em; margin-bottom:10px;">⌛ Koniec o: {days_left} dní</p>
-                        <p style="color:#2d3748; font-style: italic; border-top: 1px solid #dfc27d; padding-top: 8px;">👉 Nezabudnite zahlasovať v ankete v záložke <b>Anketa</b>.</p>
                     </div>
                     """, unsafe_allow_html=True)
             except: pass
@@ -246,19 +247,10 @@ try:
         if not df_n.empty: st.table(df_n.iloc[::-1])
         st.divider()
         st.subheader("🛠️ Súkromný podnet pre správcu")
-        podnet_text = st.text_area("Napíšte váš podnet (uvidí ho len správca):", key="pod_area")
+        podnet_text = st.text_area("Napíšte váš podnet:", key="pod_area")
         p_subj = urllib.parse.quote(f"Podnet VP {u['vs']}")
         p_body = urllib.parse.quote(f"Od: {u['meno']} (VS: {u['vs']})\nEmail: {u['email']}\n\nPodnet:\n{podnet_text}")
         st.link_button("🚀 Odoslať podnet automaticky", f"mailto:{MAIL_SPRAVCA}?subject={p_subj}&body={p_body}", use_container_width=True)
-        
-        st.markdown(f"""
-        <div style="background-color:#fff5f5; padding:15px; border-radius:10px; border:2px solid #e53e3e; margin-top:15px;">
-            <h4 style="color:#c53030; margin-top:0;">📩 Manuálny návod</h4>
-            <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
-            Predmet: <b>Podnet VP {u['vs']}</b><br>
-            Obsah: <b>Do textu e-mailu, prosím, podrobne popíšte váš problém.</b></p>
-        </div>
-        """, unsafe_allow_html=True)
 
     # --- T2: FINANCIE ---
     with tabs[1]:
@@ -286,7 +278,7 @@ try:
                     v_mes = df_v_graph.groupby(df_v_graph["temp_dt"].dt.strftime('%m/%y'))["Suma"].sum().reindex(stlpce_m, fill_value=0)
                     p_mes = df_p[stlpce_m].apply(pd.to_numeric, errors="coerce").fillna(0).sum()
                     df_g = pd.DataFrame({"Mesiac": stlpce_m, "Zostatok": (p_mes.values - v_mes.values).cumsum()})
-                    fig = px.area(df_g, x="Mesiac", y="Zostatok", title="Vývoj financií (k dnešnému dňu)", template="plotly_dark")
+                    fig = px.area(df_g, x="Mesiac", y="Zostatok", title="Vývoj financií", template="plotly_dark")
                     fig.update_traces(line_color='#28a745', fillcolor='rgba(40, 167, 69, 0.3)')
                     st.plotly_chart(fig, use_container_width=True)
 
@@ -310,12 +302,10 @@ try:
             if bilancia < 0:
                 st.markdown(f"""<div style="background-color:#fff5f5; padding:20px; border-radius:12px; border:3px solid #e53e3e; text-align:center;">
                     <h3 style="color:#c53030; margin-top:0;">⚠️ Evidujeme nedoplatok: {abs(bilancia):.2f} €</h3>
-                    <p style="color:#2d3748;">Suma všetkých predpisov: <b>{ocakavane:.2f} €</b> | Suma vašich úhrad: <b>{realne:.2f} €</b></p>
                 </div>""", unsafe_allow_html=True)
             else:
                 st.markdown(f"""<div style="background-color:#f0fff4; padding:20px; border-radius:12px; border:3px solid #38a169; text-align:center;">
                     <h3 style="color:#2f855a; margin-top:0;">✅ Platby sú v poriadku</h3>
-                    <p style="color:#2d3748;">Suma predpisov: <b>{ocakavane:.2f} €</b> | Vaše úhrady: <b>{realne:.2f} €</b> | Preplatok: <b>{bilancia:.2f} €</b></p>
                 </div>""", unsafe_allow_html=True)
 
         # PREHĽAD ZÁSTUPCU
@@ -339,10 +329,7 @@ try:
                 _, _, b_sus = vypocitaj_bilanciu(s_vs, df_p, df_k)
                 p_data.append({"VS": s_vs, "Stav": "Preplatok" if b_sus >= 0 else "Nedoplatok", "Suma (€)": f"{abs(b_sus):.2f}"})
             df_blok = pd.DataFrame(p_data)
-            def styluj_stav(row):
-                bg = 'background-color: #441111; color: white;' if row['Stav'] == 'Nedoplatok' else 'background-color: #114411; color: white;'
-                return [bg] * len(row)
-            st.dataframe(df_blok.style.apply(styluj_stav, axis=1), hide_index=True, use_container_width=True)
+            st.dataframe(df_blok, hide_index=True, use_container_width=True)
 
     # --- T4: ANKETA ---
     with tabs[3]:
@@ -356,10 +343,9 @@ try:
                 df_curr = df_h[df_h[c_ot_all].astype(str).str.strip() == OTAZKA.strip()]
                 pocet_za = len(df_curr[df_curr[c_hl].astype(str).str.upper().str.contains("ANO|ZA")])
                 pocet_pro = len(df_curr[df_curr[c_hl].astype(str).str.upper().str.contains("NIE|PROTI")])
-                s1, s2, s3 = st.columns(3)
+                s1, s2 = st.columns(2)
                 s1.metric("ZA 👍", f"{pocet_za}")
                 s2.metric("PROTI 👎", f"{pocet_pro}")
-                s3.metric("Spolu", f"{pocet_za + pocet_pro}")
 
             st.divider()
             v_cist = u['vs'].lstrip('0')
@@ -379,13 +365,6 @@ try:
                 b1.link_button("👍 ZA", f"mailto:{MAIL_SPRAVCA}?subject={s_za}", use_container_width=True)
                 b2.link_button("👎 PROTI", f"mailto:{MAIL_SPRAVCA}?subject={s_ni}", use_container_width=True)
 
-            st.markdown(f"""<div style="background-color:#f0fff4; padding:15px; border-radius:10px; border:2px solid #38a169; margin-top:20px;">
-                <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne hlasovanie</h4>
-                <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
-                <b>Predmet ZA:</b> HLAS:ANO | VS:{u['vs']} | {OTAZKA}<br>
-                <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
-            </div>""", unsafe_allow_html=True)
-        
         st.divider()
         st.subheader("📜 História mojich hlasovaní")
         if not df_h.empty:
@@ -404,10 +383,6 @@ try:
             o_subj = urllib.parse.quote(f"ODKAZ NA NASTENKU | VS:{u['vs']}")
             o_body = urllib.parse.quote(f"Od: {u['meno']}\n\nOdkaz:\n{nova_sprava}")
             st.link_button("✉️ Otvoriť e-mail s týmto textom", f"mailto:{MAIL_SPRAVCA}?subject={o_subj}&body={o_body}", use_container_width=True)
-        st.markdown(f"""<div style="background-color:#f0f7ff; padding:15px; border-radius:10px; border:2px solid #007bff; margin-top:15px;">
-            <h4 style="color:#0056b3; margin-top:0;">📩 Manuálny návod</h4>
-            <p style="color:#2d3748;">Pošlite e-mail na <b>{MAIL_SPRAVCA}</b> s predmetom <b>ODKAZ NA NASTENKU | VS:{u['vs']}</b></p>
-        </div>""", unsafe_allow_html=True)
         st.divider()
         if not df_o.empty:
             for _, row in df_o.iloc[::-1].iterrows():
@@ -416,7 +391,7 @@ try:
                     st.info(row.get('Odkaz', 'Bez textu'))
 
 except Exception as e:
-    if "user_data" in st.session_state and st.session_state["user_data"] is not None:
+    if st.session_state["user_data"] is not None:
         st.error(f"Systémová informácia: {e}")
 
 st.markdown(f"<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© {datetime.now().year} Správa areálu Victory Port</p>", unsafe_allow_html=True)
