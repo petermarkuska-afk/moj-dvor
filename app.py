@@ -17,7 +17,7 @@ except Exception as e:
     st.error("⚠️ CHYBA: Chýbajú nastavenia v 'Secrets' na Streamlit Cloud. Skontrolujte MAIL_SPRAVCA, SID a HLAVNE_HESLO.")
     st.stop()
 
-OTAZKA = "Detský karneval?" 
+OTAZKA = "ŽIADNA" 
 KONIEC_ANKETY = "2026-03-05"
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
@@ -412,5 +412,6 @@ except Exception as e:
         st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
 
 
