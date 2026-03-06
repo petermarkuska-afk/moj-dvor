@@ -57,7 +57,6 @@ def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
     df_k['Rok'] = pd.to_numeric(df_k['Rok'], errors='coerce')
     df_k['Predpis'] = pd.to_numeric(df_k['Predpis'], errors='coerce').fillna(0)
     
-    # OPRAVA: Počíta predpis iba do aktuálneho mesiaca a roku vrátane
     mask = (df_k['Rok'] < akt_r) | ((df_k['Rok'] == akt_r) & (df_k['Mesiac'] <= akt_m))
     suma_predpisov = df_k[mask]['Predpis'].sum()
 
@@ -69,7 +68,6 @@ def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
         return 0.0, round(suma_predpisov, 2), round(-suma_predpisov, 2)
 
     stlpce_historie = [c for c in df_platby.columns if "/" in c]
-    # OPRAVA: Explicitné sčítanie hodnôt úhrad v riadku
     suma_uhrad = pd.to_numeric(u_riadok.iloc[0][stlpce_historie], errors='coerce').fillna(0).sum()
 
     return round(suma_uhrad, 2), round(suma_predpisov, 2), round(suma_uhrad - suma_predpisov, 2)
@@ -121,7 +119,7 @@ if not st.session_state["auth_pass"]:
         else: st.error("Nesprávne heslo!")
     st.stop()
 
-if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
+if st.session_state["user_data"] is None:
     st.markdown("<h2 style='text-align: center;'>🔑 Identifikácia majiteľa</h2>", unsafe_allow_html=True)
     
     col_log1, col_log2 = st.columns(2)
@@ -160,9 +158,9 @@ if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
             else: st.error("V tabuľke 'Adresar' chýba stĺpec VS alebo PIN.")
     st.stop()
 
-if st.session_state["user_data"] is None:
-    st.stop()
-
+# ==========================================
+# 3. HLAVNÝ PORTÁL
+# ==========================================
 if not st.session_state["debt_confirmed"]:
     u = st.session_state["user_data"]
     df_p, df_k = get_df("Platby", SID), get_df("Konfiguracia", SID)
@@ -187,9 +185,6 @@ if not st.session_state["debt_confirmed"]:
     st.session_state["debt_confirmed"] = True
     st.rerun()
 
-# ==========================================
-# 3. HLAVNÝ PORTÁL
-# ==========================================
 try:
     u = st.session_state["user_data"]
     df_p = get_df("Platby", SID)
@@ -361,7 +356,6 @@ try:
             c_vs_h = next((c for c in df_h.columns if "VS" in c.upper()), "VS")
             c_ot_h = next((c for c in df_h.columns if "OTAZKA" in str(c).upper().replace("Á","A")), "Otázka")
             
-            # Filtrovanie pre zobrazenie vlastnej histórie
             df_h_user = df_h[df_h[c_vs_h].astype(str).str.strip().str.lstrip('0') == v_cist]
             
             uz_hlasoval = any(df_h_user[c_ot_h].astype(str).str.strip() == OTAZKA.strip())
@@ -401,15 +395,14 @@ try:
                     st.write(f"**{row.get('Meno', 'Neznámy')}** ({row.get('Dátum', '')})")
                     st.info(row.get('Odkaz', 'Bez textu'))
 
-    # --- T6: SPRÁVA (OPTIMALIZOVANÝ MAILTO) ---
+    # --- T6: SPRÁVA ---
     if u["je_spravca"] or u["rola"] == "ZASTUPCA":
         with tabs[-1]:
             st.subheader("⚙️ Administrácia a komunikácia")
             vs_col_a = next((c for c in df_a.columns if "VS" in c.upper()), "VS")
-            # Zabezpečenie formátu na 4 cifry ako string
             df_a[vs_col_a] = df_a[vs_col_a].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().str.zfill(4)
             
-            # OPRAVA: Premenná 'prefix' musí byť definovaná vždy
+            # OPRAVA: Prefix je definovaný vždy
             if u["je_spravca"]:
                 df_ciel = df_a.copy()
                 prefix = "Všetci"
@@ -419,8 +412,6 @@ try:
 
             user_subj = st.text_input("Predmet správy:")
             email_col = next((c for c in df_ciel.columns if "EMAIL" in c.upper()), "Email")
-            
-            # Získanie unikátnych e-mailov pre daný blok
             maily = [str(m) for m in df_ciel[email_col].dropna().unique().tolist() if "@" in str(m)]
             
             if maily:
@@ -443,7 +434,7 @@ try:
                 st.warning("Pre tento výber sa nepodarilo nájsť žiadne e-mailové adresy.")
 
 except Exception as e:
-    if st.session_state["user_data"] is not None:
+    if "user_data" in st.session_state and st.session_state["user_data"] is not None:
         st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port | verzia 2.22 - fix predpis</p>", unsafe_allow_html=True)
