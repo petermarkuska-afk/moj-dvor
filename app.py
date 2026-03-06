@@ -204,12 +204,12 @@ try:
 
     st.markdown(f"<h1 style='text-align: center;'>Vitaj, {u['meno']} 👋</h1>", unsafe_allow_html=True)
     
-    col_out1, col_out2, col_out3 = st.columns([1,1,1])
-    with col_out2:
+    col_out1, col_out2 = st.columns([1,1])
+    with col_out1:
         if st.button("Odhlásiť sa", use_container_width=True):
             st.session_state.update({"auth_pass": False, "user_data": None, "debt_confirmed": False})
             st.rerun()
-    # Tlačidlo na aktualizáciu dát už nie je potrebné, keďže nemáme cache.
+    # Tlačidlo na aktualizáciu dát bolo odstránené, kód teraz pracuje bez cache.
 
     st.divider()
     tabs = st.tabs(["📢 Nástenka", "📊 Financie", "💰 Moje platby", "🗳️ Anketa", "💬 Miestny pokec"])
@@ -239,7 +239,7 @@ try:
         podnet_text = st.text_area("Napíšte váš podnet (uvidí ho len správca):", key="pod_area")
         p_subj = urllib.parse.quote(f"Podnet VP {u['vs']}")
         p_body = urllib.parse.quote(f"Od: {u['meno']} (VS: {u['vs']})\nEmail: {u['email']}\n\nPodnet:\n{podnet_text}")
-        st.link_button("🚀 Odoslať podnet automatically", f"mailto:{MAIL_SPRAVCA}?subject={p_subj}&body={p_body}", use_container_width=True)
+        st.link_button("🚀 Odoslať podnet", f"mailto:{MAIL_SPRAVCA}?subject={p_subj}&body={p_body}", use_container_width=True)
         
         st.markdown(f"""
         <div style="background-color:#fff5f5; padding:15px; border-radius:10px; border:2px solid #e53e3e; margin-top:15px;">
