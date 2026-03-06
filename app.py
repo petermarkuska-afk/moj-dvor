@@ -246,22 +246,24 @@ try:
         st.subheader("📢 Aktuálne oznamy")
         if not df_n.empty:
             df_n_clean = df_n.loc[:, ~df_n.columns.str.contains('^Unnamed')]
-            # OREŽEME dáta na posledných 7 pred zobrazením, aby scrollovanie nebolo nekonečné
             df_n_display = df_n_clean.tail(7).iloc[::-1]
             st.dataframe(df_n_display, use_container_width=True, hide_index=True, height=210)
         st.divider()
         st.subheader("🛠️ Súkromný podnet pre správcu")
         podnet_text = st.text_area("Napíšte váš podnet (uvidí ho len správca):", key="pod_area")
-        p_subj = urllib.parse.quote(f"Podnet VP {u['vs']}")
-        p_body = urllib.parse.quote(f"Od: {u['meno']} (VS: {u['vs']})\nEmail: {u['email']}\n\nPodnet:\n{podnet_text}")
-        st.link_button("🚀 Odoslať podnet", f"mailto:{MAIL_SPRAVCA}?subject={p_subj}&body={p_body}", use_container_width=True)
+        
+        # OPRAVA E-MAILOVÉHO ODKAZU PRE MOBILY
+        if st.button("Pripraviť e-mail s podnetom"):
+            p_subj = urllib.parse.quote(f"Podnet VP {u['vs']}")
+            p_body = urllib.parse.quote(f"Od: {u['meno']} (VS: {u['vs']})\nEmail: {u['email']}\n\nPodnet:\n{podnet_text}")
+            mail_link = f"mailto:{MAIL_SPRAVCA}?subject={p_subj}&body={p_body}"
+            st.markdown(f'<a href="{mail_link}" target="_blank" style="display: block; padding: 10px; background-color: #e53e3e; color: white; text-align: center; border-radius: 5px; text-decoration: none; font-weight: bold;">🚀 ODOŠLI PODNET E-MAILOM</a>', unsafe_allow_html=True)
         
         st.markdown(f"""
         <div style="background-color:#fff5f5; padding:15px; border-radius:10px; border:2px solid #e53e3e; margin-top:15px;">
             <h4 style="color:#c53030; margin-top:0;">📩 Manuálny návod</h4>
-            <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
-            Predmet: <b>Podnet VP {u['vs']}</b><br>
-            Obsah: <b>Do textu e-mailu, prosím, podrobne popíšte váš problém.</b></p>
+            <p style="color:#2d3748;">Ak tlačidlo nefunguje, pošlite e-mail na: <b>{MAIL_SPRAVCA}</b><br>
+            Predmet: <b>Podnet VP {u['vs']}</b></p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -424,15 +426,12 @@ try:
             
             if maily:
                 bcc_all = "; ".join(maily)
-                # Tu je aplikovaná oprava: kódovanie subjectu aj body pomocou urllib.parse.quote
                 safe_subj = urllib.parse.quote(user_subj)
                 safe_body = urllib.parse.quote(user_msg)
-                
-                # Vytvorenie bezpečného mailto linku
                 mail_link = f"mailto:?bcc={bcc_all}&subject={safe_subj}&body={safe_body}"
                 
-                # Zobrazenie tlačidla, ktoré otvorí klienta s kompletným zakódovaným textom
-                st.link_button(f"✉️ Odoslať e-mail ({len(maily)} susedom)", mail_link, use_container_width=True)
+                # Zobrazenie HTML odkazu namiesto link_button pre lepšiu kompatibilitu
+                st.markdown(f'<a href="{mail_link}" target="_blank" style="display: block; padding: 15px; background-color: #28a745; color: white; text-align: center; border-radius: 5px; text-decoration: none; font-weight: bold;">✉️ ODOŠLI E-MAIL PRE {len(maily)} SUSEDOV</a>', unsafe_allow_html=True)
 
 except Exception as e:
     if st.session_state["user_data"] is not None:
