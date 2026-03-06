@@ -29,6 +29,7 @@ st.set_page_config(page_title="Správa areálu Victory Port", layout="centered",
 def get_df(sheet, spreadsheet_id):
     """Načítava dáta vždy nanovo bez použitia cache."""
     try:
+        # cache_bust pridáva unikátny parameter do URL, aby sme vynútili čerstvé dáta
         cache_bust = int(time.time() * 1000)
         url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/gviz/tq?tqx=out:csv&sheet={sheet}&cb={cache_bust}"
         df = pd.read_csv(url)
@@ -52,6 +53,7 @@ def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
     if df_konfig.empty:
         return 0.0, 0.0, 0.0
 
+    # 1. Suma predpisov z Konfigurácie (história + dnes)
     df_k = df_konfig.copy()
     df_k['Mesiac'] = pd.to_numeric(df_k['Mesiac'], errors='coerce')
     df_k['Rok'] = pd.to_numeric(df_k['Rok'], errors='coerce')
@@ -60,7 +62,9 @@ def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
     mask = (df_k['Rok'] < akt_r) | ((df_k['Rok'] == akt_r) & (df_k['Mesiac'] <= akt_m))
     suma_predpisov = df_k[mask]['Predpis'].sum()
 
+    # 2. Suma všetkých platieb užívateľa
     vs_p = next((c for c in df_platby.columns if "VS" in c.upper()), "VS")
+    # Čistenie VS od .0 a doplnenie na 4 cifry
     df_platby[vs_p] = df_platby[vs_p].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().str.zfill(4)
     u_riadok = df_platby[df_platby[vs_p] == vs_uzivatela]
 
@@ -109,6 +113,7 @@ if "auth_pass" not in st.session_state: st.session_state["auth_pass"] = False
 if "user_data" not in st.session_state: st.session_state["user_data"] = None
 if "debt_confirmed" not in st.session_state: st.session_state["debt_confirmed"] = False
 
+# KROK 1: Hlavné heslo
 if not st.session_state["auth_pass"]:
     st.markdown("<h2 style='text-align: center;'>🔐 Vstup do portálu</h2>", unsafe_allow_html=True)
     heslo_vstup = st.text_input("Zadajte prístupové heslo:", type="password")
@@ -119,6 +124,7 @@ if not st.session_state["auth_pass"]:
         else: st.error("Nesprávne heslo!")
     st.stop()
 
+# KROK 2: VS + PIN Identifikácia
 if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
     st.markdown("<h2 style='text-align: center;'>🔑 Identifikácia majiteľa</h2>", unsafe_allow_html=True)
     
@@ -137,6 +143,7 @@ if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
             spravca_col = next((c for c in df_a.columns if "SPRAVCA" in c.upper()), "SPRAVCA")
             
             if vs_col and pin_col:
+                # Očistenie dát v tabuľke od .0 a medzier
                 df_a[vs_col] = df_a[vs_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().str.zfill(4)
                 df_a[pin_col] = df_a[pin_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
                 
@@ -158,9 +165,11 @@ if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
             else: st.error("V tabuľke 'Adresar' chýba stĺpec VS alebo PIN.")
     st.stop()
 
+# --- POISTKA PROTI CHYBE PRI ODHLÁSENÍ ---
 if st.session_state["user_data"] is None:
     st.stop()
 
+# Krok 3: Kontrola nedoplatku (Interstitial)
 if not st.session_state["debt_confirmed"]:
     u = st.session_state["user_data"]
     df_p, df_k = get_df("Platby", SID), get_df("Konfiguracia", SID)
@@ -200,15 +209,16 @@ try:
 
     st.markdown(f"<h1 style='text-align: center;'>Vitaj, {u['meno']} 👋</h1>", unsafe_allow_html=True)
     
+    # Zarovnanie odhlasovacieho tlačidla na stred
     col_out1, col_out2, col_out3 = st.columns([1, 2, 1])
     with col_out2:
         if st.button("Odhlásiť sa", use_container_width=True):
             st.session_state.update({"auth_pass": False, "user_data": None, "debt_confirmed": False})
             st.rerun()
-        st.markdown("<p style='text-align: center; color: gray; margin-top: -10px;'>Verzia: 2.18</p>", unsafe_allow_html=True)
 
     st.divider()
     
+    # Rozšírenie tabov o sekciu Správa pre oprávnených užívateľov
     tabs_list = ["📢 Nástenka", "📊 Financie", "💰 Moje platby", "🗳️ Anketa", "💬 Miestny pokec"]
     if u["je_spravca"] or u["rola"] == "ZASTUPCA":
         tabs_list.append("⚙️ Správa")
@@ -234,23 +244,7 @@ try:
             except: pass
 
         st.subheader("📢 Aktuálne oznamy")
-        if not df_n.empty:
-            # Výber a poradie stĺpcov
-            cols_to_use = ['Dátum', 'Autor', 'Odkaz']
-            # Ošetrenie ak v tabuľke chýba niektorý stĺpec
-            existing_cols = [c for c in cols_to_use if c in df_n.columns]
-            df_n_zobr = df_n[existing_cols].iloc[::-1].head(7).copy()
-            
-            st.dataframe(
-                df_n_zobr,
-                hide_index=True,
-                use_container_width=True,
-                height=280,
-                column_config={
-                    "Odkaz": st.column_config.LinkColumn("Odkaz", display_text="Odkaz")
-                }
-            )
-            
+        if not df_n.empty: st.table(df_n.iloc[::-1])
         st.divider()
         st.subheader("🛠️ Súkromný podnet pre správcu")
         podnet_text = st.text_area("Napíšte váš podnet (uvidí ho len správca):", key="pod_area")
@@ -325,6 +319,7 @@ try:
                     <p style="color:#2d3748;">Suma predpisov: <b>{ocakavane:.2f} €</b> | Vaše úhrady: <b>{realne:.2f} €</b> | Preplatok: <b>{bilancia:.2f} €</b></p>
                 </div>""", unsafe_allow_html=True)
 
+        # PREHĽAD ZÁSTUPCU
         je_zastupca_v_tabulke = False
         if not df_a.empty:
             vs_col_a = next((c for c in df_a.columns if "VS" in c.upper()), "VS")
@@ -388,7 +383,7 @@ try:
                 <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne hlasovanie</h4>
                 <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
                 <b>Predmet ZA:</b> HLAS:ANO | VS:{u['vs']} | {OTAZKA}<br>
-                <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
+                <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTázka}</p>
             </div>""", unsafe_allow_html=True)
         
         st.divider()
@@ -420,7 +415,7 @@ try:
                     st.write(f"**{row.get('Meno', 'Neznámy')}** ({row.get('Dátum', '')})")
                     st.info(row.get('Odkaz', 'Bez textu'))
 
-    # --- T6: SPRÁVA ---
+    # --- T6: SPRÁVA (HLAVNÝ KOMUNIKÁTOR - DOPLNENÝ) ---
     if u["je_spravca"] or u["rola"] == "ZASTUPCA":
         with tabs[-1]:
             st.subheader("⚙️ Administrácia a komunikácia")
