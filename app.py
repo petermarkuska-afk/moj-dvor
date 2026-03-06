@@ -409,10 +409,11 @@ try:
             # Zabezpečenie formátu na 4 cifry ako string
             df_a[vs_col_a] = df_a[vs_col_a].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().str.zfill(4)
             
+            # OPRAVA: Premenná 'prefix' musí byť definovaná vždy
             if u["je_spravca"]:
                 df_ciel = df_a.copy()
+                prefix = "Všetci"
             else:
-                # Logika: prvé dve čísla sú číslo BD
                 prefix = str(u["vs"])[:2]
                 df_ciel = df_a[df_a[vs_col_a].str.startswith(prefix)]
 
@@ -439,7 +440,7 @@ try:
                 with st.expander("📋 Záložný zoznam e-mailov"):
                     st.text_area("Adresy (Ctrl+C):", bcc_all, height=100)
             else:
-                st.warning("Pre tento blok sa nepodarilo nájsť žiadne e-mailové adresy.")
+                st.warning("Pre tento výber sa nepodarilo nájsť žiadne e-mailové adresy.")
 
 except Exception as e:
     if st.session_state["user_data"] is not None:
