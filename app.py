@@ -245,7 +245,17 @@ try:
             except: pass
 
         st.subheader("📢 Aktuálne oznamy")
-        if not df_n.empty: st.table(df_n.iloc[::-1])
+        if not df_n.empty:
+            # Filtrujeme stĺpce, ktoré nie sú prázdne (odstraňujeme Unnamed z Excelu)
+            relevantne_stlpce = [c for c in df_n.columns if "Unnamed" not in str(c)]
+            # Zobrazenie pomocou dataframe pre podporu skrytia indexu a scrollovania
+            st.dataframe(
+                df_n[relevantne_stlpce].iloc[::-1], 
+                hide_index=True, 
+                use_container_width=True,
+                height=250 # Výška pre cca 7 záznamov so scrollbarom
+            )
+            
         st.divider()
         st.subheader("🛠️ Súkromný podnet pre správcu")
         podnet_text = st.text_area("Napíšte váš podnet (uvidí ho len správca):", key="pod_area")
