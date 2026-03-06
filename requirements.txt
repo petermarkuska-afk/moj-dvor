@@ -3,7 +3,8 @@ pandas
 plotly
 segno
 qrcode[pil]
-fpdf
+reportlab
+
 
 
 
