@@ -387,7 +387,7 @@ try:
                 <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne hlasovanie</h4>
                 <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
                 <b>Predmet ZA:</b> HLAS:ANO | VS:{u['vs']} | {OTAZKA}<br>
-                <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTázka}</p>
+                <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
             </div>""", unsafe_allow_html=True)
         
         st.divider()
@@ -448,5 +448,6 @@ except Exception as e:
         st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port | verzia 2.18</p>", unsafe_allow_html=True)
+
 
 
