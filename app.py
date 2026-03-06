@@ -59,7 +59,7 @@ def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
     df_k['Rok'] = pd.to_numeric(df_k['Rok'], errors='coerce')
     df_k['Predpis'] = pd.to_numeric(df_k['Predpis'], errors='coerce').fillna(0)
     
-    mask = (df_k['Rok'] < akt_r) | ((df_k['Rok'] == akt_r) & (df_k['Mesiac'] <= akt_m))
+    mask = (df_k['Rok'] < akt_r) | ((df_k['Rok'] == akt_r) | (df_k['Mesiac'] <= akt_m))
     suma_predpisov = df_k[mask]['Predpis'].sum()
 
     # 2. Suma všetkých platieb užívateľa
@@ -246,8 +246,8 @@ try:
         st.subheader("📢 Aktuálne oznamy")
         if not df_n.empty:
             df_n_clean = df_n.loc[:, ~df_n.columns.str.contains('^Unnamed')]
+            # OREŽEME dáta na posledných 7 pred zobrazením, aby scrollovanie nebolo nekonečné
             df_n_display = df_n_clean.tail(7).iloc[::-1]
-            # Pridaný parameter height=210 pre vynútenie skrolovania
             st.dataframe(df_n_display, use_container_width=True, hide_index=True, height=210)
         st.divider()
         st.subheader("🛠️ Súkromný podnet pre správcu")
@@ -419,7 +419,7 @@ try:
                     st.write(f"**{row.get('Meno', 'Neznámy')}** ({row.get('Dátum', '')})")
                     st.info(row.get('Odkaz', 'Bez textu'))
 
-    # --- T6: SPRÁVA (HLAVNÝ KOMUNIKÁTOR - DOPLNENÝ) ---
+    # --- T6: SPRÁVA (HLAVNÝ KOMUNIKÁTOR) ---
     if u["je_spravca"] or u["rola"] == "ZASTUPCA":
         with tabs[-1]:
             st.subheader("⚙️ Administrácia a komunikácia")
