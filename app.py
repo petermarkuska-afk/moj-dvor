@@ -57,7 +57,8 @@ def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
     df_k['Rok'] = pd.to_numeric(df_k['Rok'], errors='coerce')
     df_k['Predpis'] = pd.to_numeric(df_k['Predpis'], errors='coerce').fillna(0)
     
-    mask = (df_k['Rok'] < akt_r) | ((df_k['Rok'] == akt_r) | (df_k['Mesiac'] <= akt_m))
+    # OPRAVA: Počíta predpis iba do aktuálneho mesiaca a roku vrátane
+    mask = (df_k['Rok'] < akt_r) | ((df_k['Rok'] == akt_r) & (df_k['Mesiac'] <= akt_m))
     suma_predpisov = df_k[mask]['Predpis'].sum()
 
     vs_p = next((c for c in df_platby.columns if "VS" in c.upper()), "VS")
@@ -68,6 +69,7 @@ def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
         return 0.0, round(suma_predpisov, 2), round(-suma_predpisov, 2)
 
     stlpce_historie = [c for c in df_platby.columns if "/" in c]
+    # OPRAVA: Explicitné sčítanie hodnôt úhrad v riadku
     suma_uhrad = pd.to_numeric(u_riadok.iloc[0][stlpce_historie], errors='coerce').fillna(0).sum()
 
     return round(suma_uhrad, 2), round(suma_predpisov, 2), round(suma_uhrad - suma_predpisov, 2)
