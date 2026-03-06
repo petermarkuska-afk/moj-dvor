@@ -23,14 +23,15 @@ KONIEC_ANKETY = "2026-03-05"
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
 
 # ==========================================
-# POMOCNÉ FUNKCIE (CACHE A DÁTA)
+# POMOCNÉ FUNKCIE (DÁTA V REÁLNOM ČASE)
 # ==========================================
 
-@st.cache_data(ttl=10)  # Dáta ostanú v pamäti 10 minút pre bleskovú rýchlosť
 def get_df(sheet, spreadsheet_id):
+    """Načítava dáta vždy nanovo bez použitia cache."""
     try:
-        # Pri cachovaní nepoužívame dynamický cache_bust v URL
-        url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/gviz/tq?tqx=out:csv&sheet={sheet}"
+        # cache_bust pridáva unikátny parameter do URL, aby sme vynútili čerstvé dáta
+        cache_bust = int(time.time() * 1000)
+        url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/gviz/tq?tqx=out:csv&sheet={sheet}&cb={cache_bust}"
         df = pd.read_csv(url)
         df.columns = [str(c).strip() for c in df.columns]
         return df.dropna(how='all')
@@ -208,10 +209,7 @@ try:
         if st.button("Odhlásiť sa", use_container_width=True):
             st.session_state.update({"auth_pass": False, "user_data": None, "debt_confirmed": False})
             st.rerun()
-    with col_out3:
-        if st.button("🔄 Aktualizovať dáta", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
+    # Tlačidlo na aktualizáciu dát už nie je potrebné, keďže nemáme cache.
 
     st.divider()
     tabs = st.tabs(["📢 Nástenka", "📊 Financie", "💰 Moje platby", "🗳️ Anketa", "💬 Miestny pokec"])
@@ -241,7 +239,7 @@ try:
         podnet_text = st.text_area("Napíšte váš podnet (uvidí ho len správca):", key="pod_area")
         p_subj = urllib.parse.quote(f"Podnet VP {u['vs']}")
         p_body = urllib.parse.quote(f"Od: {u['meno']} (VS: {u['vs']})\nEmail: {u['email']}\n\nPodnet:\n{podnet_text}")
-        st.link_button("🚀 Odoslať podnet automaticky", f"mailto:{MAIL_SPRAVCA}?subject={p_subj}&body={p_body}", use_container_width=True)
+        st.link_button("🚀 Odoslať podnet automatically", f"mailto:{MAIL_SPRAVCA}?subject={p_subj}&body={p_body}", use_container_width=True)
         
         st.markdown(f"""
         <div style="background-color:#fff5f5; padding:15px; border-radius:10px; border:2px solid #e53e3e; margin-top:15px;">
@@ -252,7 +250,7 @@ try:
         </div>
         """, unsafe_allow_html=True)
 
-    # --- T2: FINANCIE (OPRAVENÝ GRAF) ---
+    # --- T2: FINANCIE ---
     with tabs[1]:
         if not df_p.empty:
             vsetky_m = [c for c in df_p.columns if "/" in c]
@@ -412,6 +410,3 @@ except Exception as e:
         st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
-
-
-
