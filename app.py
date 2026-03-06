@@ -252,7 +252,6 @@ try:
         st.subheader("🛠️ Súkromný podnet pre správcu")
         podnet_text = st.text_area("Napíšte váš podnet (uvidí ho len správca):", key="pod_area")
         
-        # OPRAVA E-MAILOVÉHO ODKAZU PRE MOBILY
         if st.button("Pripraviť e-mail s podnetom"):
             p_subj = urllib.parse.quote(f"Podnet VP {u['vs']}")
             p_body = urllib.parse.quote(f"Od: {u['meno']} (VS: {u['vs']})\nEmail: {u['email']}\n\nPodnet:\n{podnet_text}")
@@ -316,14 +315,14 @@ try:
             st.divider()
             if bilancia < 0:
                 st.markdown(f"""<div style="background-color:#fff5f5; padding:20px; border-radius:12px; border:3px solid #e53e3e; text-align:center;">
-                    <h3 style="color:#c53030; margin-top:0;">⚠️ Evidujeme nedoplatok: {abs(bilancia):.2f} €</h3>
-                    <p style="color:#2d3748;">Suma všetkých predpisov: <b>{ocakavane:.2f} €</b> | Suma vašich úhrad: <b>{realne:.2f} €</b></p>
-                </div>""", unsafe_allow_html=True)
+                        <h3 style="color:#c53030; margin-top:0;">⚠️ Evidujeme nedoplatok: {abs(bilancia):.2f} €</h3>
+                        <p style="color:#2d3748;">Suma všetkých predpisov: <b>{ocakavane:.2f} €</b> | Suma vašich úhrad: <b>{realne:.2f} €</b></p>
+                    </div>""", unsafe_allow_html=True)
             else:
                 st.markdown(f"""<div style="background-color:#f0fff4; padding:20px; border-radius:12px; border:3px solid #38a169; text-align:center;">
-                    <h3 style="color:#2f855a; margin-top:0;">✅ Platby sú v poriadku</h3>
-                    <p style="color:#2d3748;">Suma predpisov: <b>{ocakavane:.2f} €</b> | Vaše úhrady: <b>{realne:.2f} €</b> | Preplatok: <b>{bilancia:.2f} €</b></p>
-                </div>""", unsafe_allow_html=True)
+                        <h3 style="color:#2f855a; margin-top:0;">✅ Platby sú v poriadku</h3>
+                        <p style="color:#2d3748;">Suma predpisov: <b>{ocakavane:.2f} €</b> | Vaše úhrady: <b>{realne:.2f} €</b> | Preplatok: <b>{bilancia:.2f} €</b></p>
+                    </div>""", unsafe_allow_html=True)
 
         # PREHĽAD ZÁSTUPCU
         je_zastupca_v_tabulke = False
@@ -430,11 +429,18 @@ try:
                 safe_body = urllib.parse.quote(user_msg)
                 mail_link = f"mailto:?bcc={bcc_all}&subject={safe_subj}&body={safe_body}"
                 
-                # Zobrazenie HTML odkazu namiesto link_button pre lepšiu kompatibilitu
-                st.markdown(f'<a href="{mail_link}" target="_blank" style="display: block; padding: 15px; background-color: #28a745; color: white; text-align: center; border-radius: 5px; text-decoration: none; font-weight: bold;">✉️ ODOŠLI E-MAIL PRE {len(maily)} SUSEDOV</a>', unsafe_allow_html=True)
+                # Vylepšený HTML odkaz s JavaScriptovým oneskorením pre mobily
+                st.markdown(f'''
+                    <a href="{mail_link}" 
+                       onclick="setTimeout(function(){{window.location.reload();}}, 1000);"
+                       style="display: block; padding: 20px; background-color: #28a745; color: white; text-align: center; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 1.1em;">
+                       ✉️ OTVORIŤ E-MAIL PRE {len(maily)} SUSEDOV
+                    </a>
+                ''', unsafe_allow_html=True)
+                st.caption("Tip: Ak sa e-mail neotvorí na 1. kliknutie, počkajte sekundu a kliknite znovu.")
 
 except Exception as e:
     if st.session_state["user_data"] is not None:
         st.error(f"Systémová informácia: {e}")
 
-st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port | verzia 2.18</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port | verzia 2.19</p>", unsafe_allow_html=True)
