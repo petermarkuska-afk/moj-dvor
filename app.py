@@ -372,6 +372,11 @@ try:
                 b1.link_button("👍 ZA", f"mailto:{MAIL_SPRAVCA}?subject={s_za}", use_container_width=True)
                 b2.link_button("👎 PROTI", f"mailto:{MAIL_SPRAVCA}?subject={s_ni}", use_container_width=True)
 
+            st.divider()
+            st.subheader("📜 História hlasovaní")
+            if not df_h.empty:
+                st.dataframe(df_h, hide_index=True, use_container_width=True)
+
     # --- T5: MIESTNY POKEC ---
     with tabs[4]:
         st.subheader("💬 Verejná nástenka odkazov")
@@ -418,7 +423,7 @@ try:
                 st.markdown(f'''
                 <a href="{mail_link}" 
                    style="display: block; padding: 20px; background-color: #28a745; color: white; text-align: center; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 1.1em;">
-                   ✉️ OTVORIŤ MAIL PRE {len(maily)} SUSEDOV
+                    ✉️ OTVORIŤ MAIL PRE {len(maily)} SUSEDOV
                 </a>
                 ''', unsafe_allow_html=True)
                 
