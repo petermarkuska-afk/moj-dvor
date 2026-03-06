@@ -29,7 +29,6 @@ st.set_page_config(page_title="Správa areálu Victory Port", layout="centered",
 def get_df(sheet, spreadsheet_id):
     """Načítava dáta vždy nanovo bez použitia cache."""
     try:
-        # cache_bust pridáva unikátny parameter do URL, aby sme vynútili čerstvé dáta
         cache_bust = int(time.time() * 1000)
         url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/gviz/tq?tqx=out:csv&sheet={sheet}&cb={cache_bust}"
         df = pd.read_csv(url)
@@ -53,7 +52,6 @@ def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
     if df_konfig.empty:
         return 0.0, 0.0, 0.0
 
-    # 1. Suma predpisov z Konfigurácie (história + dnes)
     df_k = df_konfig.copy()
     df_k['Mesiac'] = pd.to_numeric(df_k['Mesiac'], errors='coerce')
     df_k['Rok'] = pd.to_numeric(df_k['Rok'], errors='coerce')
@@ -62,9 +60,7 @@ def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
     mask = (df_k['Rok'] < akt_r) | ((df_k['Rok'] == akt_r) | (df_k['Mesiac'] <= akt_m))
     suma_predpisov = df_k[mask]['Predpis'].sum()
 
-    # 2. Suma všetkých platieb užívateľa
     vs_p = next((c for c in df_platby.columns if "VS" in c.upper()), "VS")
-    # Čistenie VS od .0 a doplnenie na 4 cifry
     df_platby[vs_p] = df_platby[vs_p].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().str.zfill(4)
     u_riadok = df_platby[df_platby[vs_p] == vs_uzivatela]
 
@@ -113,7 +109,6 @@ if "auth_pass" not in st.session_state: st.session_state["auth_pass"] = False
 if "user_data" not in st.session_state: st.session_state["user_data"] = None
 if "debt_confirmed" not in st.session_state: st.session_state["debt_confirmed"] = False
 
-# KROK 1: Hlavné heslo
 if not st.session_state["auth_pass"]:
     st.markdown("<h2 style='text-align: center;'>🔐 Vstup do portálu</h2>", unsafe_allow_html=True)
     heslo_vstup = st.text_input("Zadajte prístupové heslo:", type="password")
@@ -124,7 +119,6 @@ if not st.session_state["auth_pass"]:
         else: st.error("Nesprávne heslo!")
     st.stop()
 
-# KROK 2: VS + PIN Identifikácia
 if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
     st.markdown("<h2 style='text-align: center;'>🔑 Identifikácia majiteľa</h2>", unsafe_allow_html=True)
     
@@ -143,7 +137,6 @@ if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
             spravca_col = next((c for c in df_a.columns if "SPRAVCA" in c.upper()), "SPRAVCA")
             
             if vs_col and pin_col:
-                # Očistenie dát v tabuľke od .0 a medzier
                 df_a[vs_col] = df_a[vs_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().str.zfill(4)
                 df_a[pin_col] = df_a[pin_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
                 
@@ -165,11 +158,9 @@ if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
             else: st.error("V tabuľke 'Adresar' chýba stĺpec VS alebo PIN.")
     st.stop()
 
-# --- POISTKA PROTI CHYBE PRI ODHLÁSENÍ ---
 if st.session_state["user_data"] is None:
     st.stop()
 
-# Krok 3: Kontrola nedoplatku (Interstitial)
 if not st.session_state["debt_confirmed"]:
     u = st.session_state["user_data"]
     df_p, df_k = get_df("Platby", SID), get_df("Konfiguracia", SID)
@@ -209,7 +200,6 @@ try:
 
     st.markdown(f"<h1 style='text-align: center;'>Vitaj, {u['meno']} 👋</h1>", unsafe_allow_html=True)
     
-    # Zarovnanie odhlasovacieho tlačidla na stred
     col_out1, col_out2, col_out3 = st.columns([1, 2, 1])
     with col_out2:
         if st.button("Odhlásiť sa", use_container_width=True):
@@ -218,7 +208,6 @@ try:
 
     st.divider()
     
-    # Rozšírenie tabov o sekciu Správa pre oprávnených užívateľov
     tabs_list = ["📢 Nástenka", "📊 Financie", "💰 Moje platby", "🗳️ Anketa", "💬 Miestny pokec"]
     if u["je_spravca"] or u["rola"] == "ZASTUPCA":
         tabs_list.append("⚙️ Správa")
@@ -324,7 +313,6 @@ try:
                         <p style="color:#2d3748;">Suma predpisov: <b>{ocakavane:.2f} €</b> | Vaše úhrady: <b>{realne:.2f} €</b> | Preplatok: <b>{bilancia:.2f} €</b></p>
                     </div>""", unsafe_allow_html=True)
 
-        # PREHĽAD ZÁSTUPCU
         je_zastupca_v_tabulke = False
         if not df_a.empty:
             vs_col_a = next((c for c in df_a.columns if "VS" in c.upper()), "VS")
@@ -403,7 +391,7 @@ try:
                     st.write(f"**{row.get('Meno', 'Neznámy')}** ({row.get('Dátum', '')})")
                     st.info(row.get('Odkaz', 'Bez textu'))
 
-    # --- T6: SPRÁVA (HLAVNÝ KOMUNIKÁTOR) ---
+    # --- T6: SPRÁVA (S OCHRANNOU LEHOTOU 7 SEKÚND) ---
     if u["je_spravca"] or u["rola"] == "ZASTUPCA":
         with tabs[-1]:
             st.subheader("⚙️ Administrácia a komunikácia")
@@ -416,10 +404,8 @@ try:
                 prefix = u["vs"][:2]
                 df_ciel = df_a[df_a[vs_col_a].str.startswith(prefix)]
 
-            st.write("### ✍️ Napísať hromadný e-mail")
-            user_subj = st.text_input("Predmet e-mailu:")
-            user_msg = st.text_area("Text e-mailu:")
-            
+            user_subj = st.text_input("Predmet:")
+            user_msg = st.text_area("Text:")
             email_col = next((c for c in df_ciel.columns if "EMAIL" in c.upper()), "Email")
             maily = [str(m) for m in df_ciel[email_col].dropna().unique().tolist() if "@" in str(m)]
             
@@ -429,15 +415,29 @@ try:
                 safe_body = urllib.parse.quote(user_msg)
                 mail_link = f"mailto:?bcc={bcc_all}&subject={safe_subj}&body={safe_body}"
                 
-                # Vylepšený HTML odkaz s JavaScriptovým oneskorením pre mobily
+                # HTML a JavaScript pre 7-sekundové oneskorenie
                 st.markdown(f'''
-                    <a href="{mail_link}" 
-                       onclick="setTimeout(function(){{window.location.reload();}}, 1000);"
-                       style="display: block; padding: 20px; background-color: #28a745; color: white; text-align: center; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 1.1em;">
-                       ✉️ OTVORIŤ E-MAIL PRE {len(maily)} SUSEDOV
-                    </a>
+                <div id="btn-wrapper">
+                    <button id="mail-btn" disabled 
+                            onclick="window.location.href='{mail_link}';"
+                            style="width: 100%; padding: 20px; background-color: #6c757d; color: white; border: none; border-radius: 8px; font-size: 1.1em; cursor: not-allowed;">
+                        ⏳ Čakajte 7 sekúnd...
+                    </button>
+                </div>
+                <script>
+                    setTimeout(function() {{
+                        var btn = document.getElementById('mail-btn');
+                        btn.disabled = false;
+                        btn.innerHTML = '✉️ OTVORIŤ E-MAIL PRE {len(maily)} SUSEDOV';
+                        btn.style.backgroundColor = '#28a745';
+                        btn.style.cursor = 'pointer';
+                    }}, 7000);
+                </script>
                 ''', unsafe_allow_html=True)
-                st.caption("Tip: Ak sa e-mail neotvorí na 1. kliknutie, počkajte sekundu a kliknite znovu.")
+                st.caption("Tlačidlo sa aktivuje automaticky po 7 sekundách, aby sa zabezpečilo korektné načítanie zoznamu adries v mobile.")
+                
+                with st.expander("📋 Záložný zoznam e-mailov (ak automatika zlyhá)"):
+                    st.text_area("Skopírujte si adresy manuálne:", bcc_all, height=100)
 
 except Exception as e:
     if st.session_state["user_data"] is not None:
