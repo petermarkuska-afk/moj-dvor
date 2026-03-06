@@ -247,7 +247,8 @@ try:
         if not df_n.empty:
             df_n_clean = df_n.loc[:, ~df_n.columns.str.contains('^Unnamed')]
             df_n_display = df_n_clean.tail(7).iloc[::-1]
-            st.dataframe(df_n_display, use_container_width=True, hide_index=True)
+            # Pridaný parameter height=210 pre vynútenie skrolovania
+            st.dataframe(df_n_display, use_container_width=True, hide_index=True, height=210)
         st.divider()
         st.subheader("🛠️ Súkromný podnet pre správcu")
         podnet_text = st.text_area("Napíšte váš podnet (uvidí ho len správca):", key="pod_area")
