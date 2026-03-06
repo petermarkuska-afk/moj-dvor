@@ -415,26 +415,21 @@ try:
                 safe_body = urllib.parse.quote(user_msg)
                 mail_link = f"mailto:?bcc={bcc_all}&subject={safe_subj}&body={safe_body}"
                 
-                # HTML a JavaScript pre 7-sekundové oneskorenie
-                st.markdown(f'''
-                <div id="btn-wrapper">
-                    <button id="mail-btn" disabled 
-                            onclick="window.location.href='{mail_link}';"
-                            style="width: 100%; padding: 20px; background-color: #6c757d; color: white; border: none; border-radius: 8px; font-size: 1.1em; cursor: not-allowed;">
-                        ⏳ Čakajte 7 sekúnd...
-                    </button>
-                </div>
-                <script>
-                    setTimeout(function() {{
-                        var btn = document.getElementById('mail-btn');
-                        btn.disabled = false;
-                        btn.innerHTML = '✉️ OTVORIŤ E-MAIL PRE {len(maily)} SUSEDOV';
-                        btn.style.backgroundColor = '#28a745';
-                        btn.style.cursor = 'pointer';
-                    }}, 7000);
-                </script>
+                # Odpočet pomocou Streamlit placeholdera
+                ph = st.empty()
+                ph.button(f"⏳ Čakajte 7 sekúnd na prípravu e-mailu...", disabled=True, use_container_width=True)
+                
+                # Čakanie
+                time.sleep(7)
+                
+                ph.markdown(f'''
+                <a href="{mail_link}" 
+                   style="display: block; padding: 20px; background-color: #28a745; color: white; text-align: center; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 1.1em;">
+                   ✉️ OTVORIŤ E-MAIL PRE {len(maily)} SUSEDOV
+                </a>
                 ''', unsafe_allow_html=True)
-                st.caption("Tlačidlo sa aktivuje automaticky po 7 sekundách, aby sa zabezpečilo korektné načítanie zoznamu adries v mobile.")
+                
+                st.caption("Tlačidlo sa pripravilo. Ak sa e-mail neotvorí, použite zoznam nižšie.")
                 
                 with st.expander("📋 Záložný zoznam e-mailov (ak automatika zlyhá)"):
                     st.text_area("Skopírujte si adresy manuálne:", bcc_all, height=100)
