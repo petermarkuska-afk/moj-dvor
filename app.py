@@ -204,12 +204,12 @@ try:
 
     st.markdown(f"<h1 style='text-align: center;'>Vitaj, {u['meno']} 👋</h1>", unsafe_allow_html=True)
     
-    col_out1, col_out2 = st.columns([1,1])
-    with col_out1:
+    # Zarovnanie odhlasovacieho tlačidla na stred
+    col_out1, col_out2, col_out3 = st.columns([1, 2, 1])
+    with col_out2:
         if st.button("Odhlásiť sa", use_container_width=True):
             st.session_state.update({"auth_pass": False, "user_data": None, "debt_confirmed": False})
             st.rerun()
-    # Tlačidlo na aktualizáciu dát bolo odstránené, kód teraz pracuje bez cache.
 
     st.divider()
     tabs = st.tabs(["📢 Nástenka", "📊 Financie", "💰 Moje platby", "🗳️ Anketa", "💬 Miestny pokec"])
