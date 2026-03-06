@@ -406,29 +406,31 @@ try:
         with tabs[-1]:
             st.subheader("⚙️ Administrácia a komunikácia")
             vs_col_a = next((c for c in df_a.columns if "VS" in c.upper()), "VS")
-            df_a[vs_col_a] = df_a[vs_col_a].astype(str).str.replace(r'\.0$', '', regex=True).str.zfill(4)
+            # Zabezpečenie formátu na 4 cifry ako string
+            df_a[vs_col_a] = df_a[vs_col_a].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().str.zfill(4)
             
             if u["je_spravca"]:
                 df_ciel = df_a.copy()
             else:
-                prefix = u["vs"][:2]
+                # Logika: prvé dve čísla sú číslo BD
+                prefix = str(u["vs"])[:2]
                 df_ciel = df_a[df_a[vs_col_a].str.startswith(prefix)]
 
-            user_subj = st.text_input("Predmet:")
+            user_subj = st.text_input("Predmet správy:")
             email_col = next((c for c in df_ciel.columns if "EMAIL" in c.upper()), "Email")
+            
+            # Získanie unikátnych e-mailov pre daný blok
             maily = [str(m) for m in df_ciel[email_col].dropna().unique().tolist() if "@" in str(m)]
             
             if maily:
                 bcc_all = "; ".join(maily)
                 safe_subj = urllib.parse.quote(user_subj)
-                
-                # Odkaz obsahuje len adresy a predmet (pre stabilitu na mobiloch)
                 mail_link = f"mailto:?bcc={bcc_all}&subject={safe_subj}"
                 
                 st.markdown(f'''
                 <a href="{mail_link}" 
                    style="display: block; padding: 20px; background-color: #28a745; color: white; text-align: center; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 1.1em;">
-                    ✉️ OTVORIŤ MAIL PRE {len(maily)} SUSEDOV
+                    ✉️ OTVORIŤ MAIL PRE {len(maily)} SUSEDOV (BLOK {prefix}xx)
                 </a>
                 ''', unsafe_allow_html=True)
                 
@@ -436,10 +438,11 @@ try:
                 
                 with st.expander("📋 Záložný zoznam e-mailov"):
                     st.text_area("Adresy (Ctrl+C):", bcc_all, height=100)
+            else:
+                st.warning("Pre tento blok sa nepodarilo nájsť žiadne e-mailové adresy.")
 
 except Exception as e:
     if st.session_state["user_data"] is not None:
         st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port | verzia 2.22 - fix predpis</p>", unsafe_allow_html=True)
-
