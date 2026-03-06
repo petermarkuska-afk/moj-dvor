@@ -358,10 +358,11 @@ try:
             v_cist = u['vs'].lstrip('0')
             c_vs_h = next((c for c in df_h.columns if "VS" in c.upper()), "VS")
             c_ot_h = next((c for c in df_h.columns if "OTAZKA" in str(c).upper().replace("Á","A")), "Otázka")
-            uz_hlasoval = False
-            if not df_h.empty and c_ot_h in df_h.columns:
-                mask = (df_h[c_vs_h].astype(str).str.strip().str.lstrip('0') == v_cist) & (df_h[c_ot_h].astype(str).str.strip() == OTAZKA.strip())
-                uz_hlasoval = any(mask)
+            
+            # Filtrovanie pre zobrazenie vlastnej histórie
+            df_h_user = df_h[df_h[c_vs_h].astype(str).str.strip().str.lstrip('0') == v_cist]
+            
+            uz_hlasoval = any(df_h_user[c_ot_h].astype(str).str.strip() == OTAZKA.strip())
             
             if uz_hlasoval:
                 st.success("✅ Váš hlas k tejto téme bol už prijatý.")
@@ -373,9 +374,11 @@ try:
                 b2.link_button("👎 PROTI", f"mailto:{MAIL_SPRAVCA}?subject={s_ni}", use_container_width=True)
 
             st.divider()
-            st.subheader("📜 História hlasovaní")
-            if not df_h.empty:
-                st.dataframe(df_h, hide_index=True, use_container_width=True)
+            st.subheader("📜 Moja história hlasovaní")
+            if not df_h_user.empty:
+                st.dataframe(df_h_user, hide_index=True, use_container_width=True)
+            else:
+                st.write("Zatiaľ ste sa nezúčastnili žiadneho hlasovania.")
 
     # --- T5: MIESTNY POKEC ---
     with tabs[4]:
