@@ -215,6 +215,7 @@ try:
         if st.button("Odhlásiť sa", use_container_width=True):
             st.session_state.update({"auth_pass": False, "user_data": None, "debt_confirmed": False})
             st.rerun()
+        st.markdown("<p style='text-align: center; color: gray; margin-top: -10px;'>Verzia: 2.18</p>", unsafe_allow_html=True)
 
     st.divider()
     
@@ -244,7 +245,19 @@ try:
             except: pass
 
         st.subheader("📢 Aktuálne oznamy")
-        if not df_n.empty: st.table(df_n.iloc[::-1])
+        if not df_n.empty:
+            df_n_zobr = df_n.iloc[::-1].head(7).copy()
+            odkaz_col = next((c for c in df_n_zobr.columns if "ODKAZ" in str(c).upper()), "Odkaz")
+            st.dataframe(
+                df_n_zobr,
+                hide_index=True,
+                use_container_width=True,
+                height=280,
+                column_config={
+                    odkaz_col: st.column_config.LinkColumn(odkaz_col)
+                }
+            )
+            
         st.divider()
         st.subheader("🛠️ Súkromný podnet pre správcu")
         podnet_text = st.text_area("Napíšte váš podnet (uvidí ho len správca):", key="pod_area")
@@ -383,7 +396,7 @@ try:
                 <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne hlasovanie</h4>
                 <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
                 <b>Predmet ZA:</b> HLAS:ANO | VS:{u['vs']} | {OTAZKA}<br>
-                <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTázka}</p>
+                <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
             </div>""", unsafe_allow_html=True)
         
         st.divider()
