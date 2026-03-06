@@ -383,23 +383,6 @@ try:
                 b1.link_button("👍 ZA", f"mailto:{MAIL_SPRAVCA}?subject={s_za}", use_container_width=True)
                 b2.link_button("👎 PROTI", f"mailto:{MAIL_SPRAVCA}?subject={s_ni}", use_container_width=True)
 
-            st.markdown(f"""<div style="background-color:#f0fff4; padding:15px; border-radius:10px; border:2px solid #38a169; margin-top:20px;">
-                <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne hlasovanie</h4>
-                <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
-                <b>Predmet ZA:</b> HLAS:ANO | VS:{u['vs']} | {OTAZKA}<br>
-                <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
-            </div>""", unsafe_allow_html=True)
-        
-        st.divider()
-        st.subheader("📜 História mojich hlasovaní")
-        if not df_h.empty:
-            c_vs_hist = next((c for c in df_h.columns if "VS" in c.upper()), "VS")
-            df_h[c_vs_hist] = df_h[c_vs_hist].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().str.zfill(4)
-            moje_h = df_h[df_h[c_vs_hist] == u['vs']]
-            if not moje_h.empty:
-                st.dataframe(moje_h, hide_index=True, use_container_width=True)
-            else: st.info("Zatiaľ ste nehlasovali.")
-
     # --- T5: MIESTNY POKEC ---
     with tabs[4]:
         st.subheader("💬 Verejná nástenka odkazov")
@@ -441,14 +424,18 @@ try:
             
             if maily:
                 bcc_all = "; ".join(maily)
-                st.link_button(f"✉️ Odoslať e-mail ({len(maily)} susedom)", f"mailto:?bcc={bcc_all}&subject={urllib.parse.quote(user_subj)}&body={urllib.parse.quote(user_msg)}", use_container_width=True)
+                # Tu je aplikovaná oprava: kódovanie subjectu aj body pomocou urllib.parse.quote
+                safe_subj = urllib.parse.quote(user_subj)
+                safe_body = urllib.parse.quote(user_msg)
+                
+                # Vytvorenie bezpečného mailto linku
+                mail_link = f"mailto:?bcc={bcc_all}&subject={safe_subj}&body={safe_body}"
+                
+                # Zobrazenie tlačidla, ktoré otvorí klienta s kompletným zakódovaným textom
+                st.link_button(f"✉️ Odoslať e-mail ({len(maily)} susedom)", mail_link, use_container_width=True)
 
 except Exception as e:
     if st.session_state["user_data"] is not None:
         st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port | verzia 2.18</p>", unsafe_allow_html=True)
-
-
-
-
