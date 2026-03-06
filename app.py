@@ -244,7 +244,10 @@ try:
             except: pass
 
         st.subheader("📢 Aktuálne oznamy")
-        if not df_n.empty: st.table(df_n.iloc[::-1])
+        if not df_n.empty:
+            df_n_clean = df_n.loc[:, ~df_n.columns.str.contains('^Unnamed')]
+            df_n_display = df_n_clean.tail(7).iloc[::-1]
+            st.dataframe(df_n_display, use_container_width=True, hide_index=True)
         st.divider()
         st.subheader("🛠️ Súkromný podnet pre správcu")
         podnet_text = st.text_area("Napíšte váš podnet (uvidí ho len správca):", key="pod_area")
@@ -443,4 +446,4 @@ except Exception as e:
     if st.session_state["user_data"] is not None:
         st.error(f"Systémová informácia: {e}")
 
-st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port | verzia 2.18</p>", unsafe_allow_html=True)
