@@ -391,7 +391,7 @@ try:
                     st.write(f"**{row.get('Meno', 'Neznámy')}** ({row.get('Dátum', '')})")
                     st.info(row.get('Odkaz', 'Bez textu'))
 
-    # --- T6: SPRÁVA (S OCHRANNOU LEHOTOU 7 SEKÚND) ---
+    # --- T6: SPRÁVA (OPTIMALIZOVANÝ MAILTO) ---
     if u["je_spravca"] or u["rola"] == "ZASTUPCA":
         with tabs[-1]:
             st.subheader("⚙️ Administrácia a komunikácia")
@@ -405,34 +405,27 @@ try:
                 df_ciel = df_a[df_a[vs_col_a].str.startswith(prefix)]
 
             user_subj = st.text_input("Predmet:")
-            user_msg = st.text_area("Text:")
             email_col = next((c for c in df_ciel.columns if "EMAIL" in c.upper()), "Email")
             maily = [str(m) for m in df_ciel[email_col].dropna().unique().tolist() if "@" in str(m)]
             
             if maily:
                 bcc_all = "; ".join(maily)
                 safe_subj = urllib.parse.quote(user_subj)
-                safe_body = urllib.parse.quote(user_msg)
-                mail_link = f"mailto:?bcc={bcc_all}&subject={safe_subj}&body={safe_body}"
                 
-                # Odpočet pomocou Streamlit placeholdera
-                ph = st.empty()
-                ph.button(f"⏳ Čakajte 7 sekúnd na prípravu e-mailu...", disabled=True, use_container_width=True)
+                # Odkaz obsahuje len adresy a predmet (pre stabilitu na mobiloch)
+                mail_link = f"mailto:?bcc={bcc_all}&subject={safe_subj}"
                 
-                # Čakanie
-                time.sleep(7)
-                
-                ph.markdown(f'''
+                st.markdown(f'''
                 <a href="{mail_link}" 
                    style="display: block; padding: 20px; background-color: #28a745; color: white; text-align: center; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 1.1em;">
-                   ✉️ OTVORIŤ E-MAIL PRE {len(maily)} SUSEDOV
+                   ✉️ OTVORIŤ MAIL PRE {len(maily)} SUSEDOV
                 </a>
                 ''', unsafe_allow_html=True)
                 
-                st.caption("Tlačidlo sa pripravilo. Ak sa e-mail neotvorí, použite zoznam nižšie.")
+                st.caption("Poznámka: Text správy napíšte až priamo vo svojom e-mailovom klientovi.")
                 
-                with st.expander("📋 Záložný zoznam e-mailov (ak automatika zlyhá)"):
-                    st.text_area("Skopírujte si adresy manuálne:", bcc_all, height=100)
+                with st.expander("📋 Záložný zoznam e-mailov"):
+                    st.text_area("Adresy (Ctrl+C):", bcc_all, height=100)
 
 except Exception as e:
     if st.session_state["user_data"] is not None:
