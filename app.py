@@ -5,6 +5,9 @@ import urllib.parse
 import time
 from datetime import datetime
 import base64
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from io import BytesIO
 
 # ==========================================
 # 1. KONFIGURÁCIA (Načítanie zo Secrets)
@@ -13,8 +16,10 @@ try:
     MAIL_SPRAVCA = st.secrets["MAIL_SPRAVCA"]
     SID = st.secrets["SID"]
     HLAVNE_HESLO = st.secrets["HLAVNE_HESLO"]
+    # Predpokladám, že v secrets máte uložený aj IBAN
+    IBAN = st.secrets.get("IBAN", "SK00 0000 0000 0000 0000 0000")
 except Exception as e:
-    st.error("⚠️ CHYBA: Chýbajú nastavenia v 'Secrets' na Streamlit Cloud. Skontrolujte MAIL_SPRAVCA, SID a HLAVNE_HESLO.")
+    st.error("⚠️ CHYBA: Chýbajú nastavenia v 'Secrets'.")
     st.stop()
 
 OTAZKA = "ŽIADNA" 
@@ -23,20 +28,43 @@ KONIEC_ANKETY = "2026-03-05"
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
 
 # ==========================================
-# POMOCNÉ FUNKCIE (DÁTA V REÁLNOM ČASE)
+# POMOCNÉ FUNKCIE
 # ==========================================
 
+def generuj_pdf_potvrdenie(meno, vs, uhrady, predpis):
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(50, 800, "Potvrdenie o platbách")
+    c.setFont("Helvetica", 12)
+    c.drawString(50, 780, f"Majiteľ: {meno}")
+    c.drawString(50, 765, f"Variabilný symbol (VS): {vs}")
+    
+    c.line(50, 750, 550, 750)
+    
+    c.drawString(50, 720, f"Celková suma predpisov: {predpis:.2f} €")
+    c.drawString(50, 705, f"Celkom uhradené: {uhrady:.2f} €")
+    c.drawString(50, 690, f"Bilancia: {(uhrady - predpis):.2f} €")
+    
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(50, 650, "Platobné údaje:")
+    c.setFont("Helvetica", 12)
+    c.drawString(50, 635, f"IBAN: {IBAN}")
+    c.drawString(50, 620, "VS pri platbe: Použite uvedený VS")
+    
+    c.setFont("Helvetica-Oblique", 10)
+    c.drawString(50, 580, "Ďakujeme za vašu príkladnú platobnú disciplínu.")
+    
+    c.save()
+    buffer.seek(0)
+    return buffer
+
 def get_df(sheet, spreadsheet_id):
-    """Načítava dáta vždy nanovo bez použitia cache."""
-    try:
-        # cache_bust pridáva unikátny parameter do URL, aby sme vynútili čerstvé dáta
-        cache_bust = int(time.time() * 1000)
-        url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/gviz/tq?tqx=out:csv&sheet={sheet}&cb={cache_bust}"
-        df = pd.read_csv(url)
-        df.columns = [str(c).strip() for c in df.columns]
-        return df.dropna(how='all')
-    except:
-        return pd.DataFrame()
+    cache_bust = int(time.time() * 1000)
+    url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/gviz/tq?tqx=out:csv&sheet={sheet}&cb={cache_bust}"
+    df = pd.read_csv(url)
+    df.columns = [str(c).strip() for c in df.columns]
+    return df.dropna(how='all')
 
 def get_base64_image(image_path):
     try:
@@ -47,184 +75,91 @@ def get_base64_image(image_path):
 
 def vypocitaj_bilanciu(vs_uzivatela, df_platby, df_konfig):
     teraz = datetime.now()
-    akt_m = teraz.month
-    akt_r = teraz.year
-
-    if df_konfig.empty:
-        return 0.0, 0.0, 0.0
-
-    # 1. Suma predpisov z Konfigurácie (história + dnes)
-    df_k = df_konfig.copy()
-    df_k['Mesiac'] = pd.to_numeric(df_k['Mesiac'], errors='coerce')
-    df_k['Rok'] = pd.to_numeric(df_k['Rok'], errors='coerce')
-    df_k['Predpis'] = pd.to_numeric(df_k['Predpis'], errors='coerce').fillna(0)
+    akt_m, akt_r = teraz.month, teraz.year
+    if df_konfig.empty: return 0.0, 0.0, 0.0
     
-    mask = (df_k['Rok'] < akt_r) | ((df_k['Rok'] == akt_r) & (df_k['Mesiac'] <= akt_m))
-    suma_predpisov = df_k[mask]['Predpis'].sum()
-
-    # 2. Suma všetkých platieb užívateľa
+    df_k = df_konfig.copy()
+    df_k['Predpis'] = pd.to_numeric(df_k['Predpis'], errors='coerce').fillna(0)
+    suma_predpisov = df_k['Predpis'].sum()
+    
     vs_p = next((c for c in df_platby.columns if "VS" in c.upper()), "VS")
-    # Čistenie VS od .0 a doplnenie na 4 cifry
     df_platby[vs_p] = df_platby[vs_p].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().str.zfill(4)
     u_riadok = df_platby[df_platby[vs_p] == vs_uzivatela]
-
-    if u_riadok.empty:
-        return 0.0, round(suma_predpisov, 2), round(-suma_predpisov, 2)
-
+    
+    if u_riadok.empty: return 0.0, round(suma_predpisov, 2), round(-suma_predpisov, 2)
+    
     stlpce_historie = [c for c in df_platby.columns if "/" in c]
     suma_uhrad = pd.to_numeric(u_riadok.iloc[0][stlpce_historie], errors='coerce').fillna(0).sum()
-
     return round(suma_uhrad, 2), round(suma_predpisov, 2), round(suma_uhrad - suma_predpisov, 2)
 
 # ==========================================
-# ŠTÝLOVANIE A POZADIE
+# ŠTÝLOVANIE
 # ==========================================
 img_base64 = get_base64_image("image_5.png")
-
-st.markdown(f"""
-<style>
-.stApp {{
-    background-image: url("data:image/png;base64,{img_base64}");
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
-}}
-section.main > div {{
-    background-color: rgba(0, 0, 0, 0.92);
-    padding: 30px;
-    border-radius: 20px;
-}}
-div[data-testid="stTabs"] > div {{
-    background-color: rgba(0, 0, 0, 0.92);
-    border-radius: 15px;
-    padding: 10px;
-}}
-.block-container {{
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-}}
-</style>
-""", unsafe_allow_html=True)
+st.markdown(f"""<style>.stApp {{background-image: url("data:image/png;base64,{img_base64}"); background-size: cover;}} section.main > div {{background-color: rgba(0, 0, 0, 0.92); padding: 30px; border-radius: 20px;}}</style>""", unsafe_allow_html=True)
 
 # ==========================================
-# 2. AUTENTIFIKÁCIA A OVERENIE IDENTITY
+# 2. AUTENTIFIKÁCIA
 # ==========================================
 if "auth_pass" not in st.session_state: st.session_state["auth_pass"] = False
 if "user_data" not in st.session_state: st.session_state["user_data"] = None
 if "debt_confirmed" not in st.session_state: st.session_state["debt_confirmed"] = False
 
-# KROK 1: Hlavné heslo
 if not st.session_state["auth_pass"]:
     st.markdown("<h2 style='text-align: center;'>🔐 Vstup do portálu</h2>", unsafe_allow_html=True)
     heslo_vstup = st.text_input("Zadajte prístupové heslo:", type="password")
-    if st.button("Pokračovať", use_container_width=True):
+    if st.button("Pokračovať"):
         if heslo_vstup == HLAVNE_HESLO:
             st.session_state["auth_pass"] = True
             st.rerun()
-        else: st.error("Nesprávne heslo!")
     st.stop()
 
-# KROK 2: VS + PIN Identifikácia
-if st.session_state["auth_pass"] and st.session_state["user_data"] is None:
-    st.markdown("<h2 style='text-align: center;'>🔑 Identifikácia majiteľa</h2>", unsafe_allow_html=True)
-    
-    col_log1, col_log2 = st.columns(2)
-    with col_log1:
-        vs_vstup = st.text_input("Variabilný symbol (VS):", placeholder="Napr. 1007")
-    with col_log2:
-        pin_vstup = st.text_input("Váš osobný PIN:", type="password", placeholder="****")
-
-    if st.button("Prihlásiť sa", use_container_width=True):
-        df_a = get_df("Adresar", SID)
-        if not df_a.empty:
-            vs_col = next((c for c in df_a.columns if "VS" in c.upper()), None)
-            pin_col = next((c for c in df_a.columns if "PIN" in c.upper()), None)
-            rola_col = next((c for c in df_a.columns if "ROLA" in c.upper()), "ROLA")
-            spravca_col = next((c for c in df_a.columns if "SPRAVCA" in c.upper()), "SPRAVCA")
-            
-            if vs_col and pin_col:
-                # Očistenie dát v tabuľke od .0 a medzier
-                df_a[vs_col] = df_a[vs_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().str.zfill(4)
-                df_a[pin_col] = df_a[pin_col].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
-                
-                target_vs = vs_vstup.strip().zfill(4)
-                target_pin = pin_vstup.strip()
-                
-                user_row = df_a[(df_a[vs_col] == target_vs) & (df_a[pin_col] == target_pin)]
-                
-                if not user_row.empty:
-                    st.session_state["user_data"] = {
-                        "vs": target_vs,
-                        "meno": str(user_row.iloc[0].get("Meno a priezvisko", "Neznámy")),
-                        "email": str(user_row.iloc[0].get("Email", "Neuvedený")),
-                        "rola": str(user_row.iloc[0].get(rola_col, "")).upper(),
-                        "je_spravca": str(user_row.iloc[0].get(spravca_col, "")).upper() == "ANO"
-                    }
-                    st.rerun()
-                else: st.error("Kombinácia VS a PIN kódu je nesprávna.")
-            else: st.error("V tabuľke 'Adresar' chýba stĺpec VS alebo PIN.")
-    st.stop()
-
-# --- POISTKA PROTI CHYBE PRI ODHLÁSENÍ ---
 if st.session_state["user_data"] is None:
+    st.markdown("<h2 style='text-align: center;'>🔑 Identifikácia majiteľa</h2>", unsafe_allow_html=True)
+    vs_vstup = st.text_input("Variabilný symbol:")
+    pin_vstup = st.text_input("PIN:", type="password")
+    if st.button("Prihlásiť sa"):
+        df_a = get_df("Adresar", SID)
+        vs_col = next((c for c in df_a.columns if "VS" in c.upper()), None)
+        pin_col = next((c for c in df_a.columns if "PIN" in c.upper()), None)
+        df_a[vs_col] = df_a[vs_col].astype(str).str.replace(r'\.0$', '', regex=True).str.zfill(4)
+        user_row = df_a[(df_a[vs_col] == vs_vstup.zfill(4)) & (df_a[pin_col].astype(str) == pin_vstup)]
+        if not user_row.empty:
+            st.session_state["user_data"] = {"vs": vs_vstup.zfill(4), "meno": str(user_row.iloc[0].get("Meno a priezvisko", "Neznámy")), "email": str(user_row.iloc[0].get("Email", "")), "rola": str(user_row.iloc[0].get("ROLA", "")).upper(), "je_spravca": str(user_row.iloc[0].get("SPRAVCA", "")).upper() == "ANO"}
+            st.rerun()
     st.stop()
-
-# Krok 3: Kontrola nedoplatku (Interstitial)
-if not st.session_state["debt_confirmed"]:
-    u = st.session_state["user_data"]
-    df_p, df_k = get_df("Platby", SID), get_df("Konfiguracia", SID)
-    
-    if not df_p.empty and not df_k.empty:
-        _, _, bilancia = vypocitaj_bilanciu(u['vs'], df_p, df_k)
-        
-        if bilancia < -0.01:
-            st.markdown(f"""
-            <div style="background-color:#fff5f5; padding:30px; border-radius:15px; border:3px solid #e53e3e; text-align:center; margin-top: 50px;">
-                <h2 style="color:#c53030; margin-top:0;">⚠️ Pozor</h2>
-                <h3 style="color:#2d3748;">Evidujeme nedoplatok: {abs(bilancia):.2f} €</h3>
-                <p style="color:#4a5568; margin-bottom: 25px;">Prosíme o vyrovnanie záväzku v čo najkratšom čase.</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            if st.button("Pokračovať na web", use_container_width=True):
-                st.session_state["debt_confirmed"] = True
-                st.rerun()
-            st.stop()
-    
-    st.session_state["debt_confirmed"] = True
-    st.rerun()
 
 # ==========================================
 # 3. HLAVNÝ PORTÁL
 # ==========================================
-try:
-    u = st.session_state["user_data"]
-    df_p = get_df("Platby", SID)
-    df_v = get_df("Vydavky", SID)
-    df_h = get_df("Hlasovanie", SID)
-    df_n = get_df("Nastenka", SID)
-    df_o = get_df("Odkazy", SID)
-    df_k = get_df("Konfiguracia", SID)
-    df_a = get_df("Adresar", SID)
+u = st.session_state["user_data"]
+df_p = get_df("Platby", SID)
+df_v = get_df("Vydavky", SID)
+df_h = get_df("Hlasovanie", SID)
+df_n = get_df("Nastenka", SID)
+df_o = get_df("Odkazy", SID)
+df_k = get_df("Konfiguracia", SID)
+df_a = get_df("Adresar", SID)
 
-    st.markdown(f"<h1 style='text-align: center;'>Vitaj, {u['meno']} 👋</h1>", unsafe_allow_html=True)
-    
-    # Zarovnanie odhlasovacieho tlačidla na stred s číslom verzie
-    col_out1, col_out2, col_out3 = st.columns([1, 2, 1])
-    with col_out2:
-        st.markdown("<p style='text-align: center; color: gray; font-size: 0.85em; margin-bottom: 5px;'>Verzia 2.18</p>", unsafe_allow_html=True)
-        if st.button("Odhlásiť sa", use_container_width=True):
-            st.session_state.update({"auth_pass": False, "user_data": None, "debt_confirmed": False})
-            st.rerun()
+st.markdown(f"<h1 style='text-align: center;'>Vitaj, {u['meno']} 👋</h1>", unsafe_allow_html=True)
+tabs = st.tabs(["📢 Nástenka", "📊 Financie", "💰 Moje platby", "🗳️ Anketa", "💬 Miestny pokec"])
 
-    st.divider()
+# --- TAB 2: MOJE PLATBY ---
+with tabs[2]:
+    st.subheader(f"💰 Moje platby (VS: {u['vs']})")
+    realne, predpis, bilancia = vypocitaj_bilanciu(u['vs'], df_p, df_k)
     
-    # Rozšírenie tabov o sekciu Správa pre oprávnených užívateľov
-    tabs_list = ["📢 Nástenka", "📊 Financie", "💰 Moje platby", "🗳️ Anketa", "💬 Miestny pokec"]
-    if u["je_spravca"] or u["rola"] == "ZASTUPCA":
-        tabs_list.append("⚙️ Správa")
+    st.dataframe(df_p[df_p[next((c for c in df_p.columns if "VS" in c.upper()), "VS")] == u['vs']], hide_index=True, use_container_width=True)
     
-    tabs = st.tabs(tabs_list)
+    # Tlačidlo na stiahnutie PDF
+    pdf_data = generuj_pdf_potvrdenie(u['meno'], u['vs'], realne, predpis)
+    st.download_button(
+        label="📥 Stiahnuť potvrdenie o platbách (PDF)",
+        data=pdf_data,
+        file_name=f"Potvrdenie_VS_{u['vs']}.pdf",
+        mime="application/pdf",
+        use_container_width=True
+    )
 
     # --- T1: NÁSTENKA ---
     with tabs[0]:
@@ -455,3 +390,4 @@ except Exception as e:
         st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port</p>", unsafe_allow_html=True)
+
