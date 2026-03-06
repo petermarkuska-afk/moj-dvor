@@ -244,7 +244,10 @@ try:
             except: pass
 
         st.subheader("📢 Aktuálne oznamy")
-        if not df_n.empty: st.table(df_n.iloc[::-1])
+        # ZMENA: Rolovanie nastavené na 350px
+        if not df_n.empty:
+            st.dataframe(df_n.iloc[::-1], height=350, use_container_width=True)
+        
         st.divider()
         st.subheader("🛠️ Súkromný podnet pre správcu")
         podnet_text = st.text_area("Napíšte váš podnet (uvidí ho len správca):", key="pod_area")
@@ -306,6 +309,21 @@ try:
         if not moje_riadky.empty:
             st.dataframe(moje_riadky, hide_index=True, use_container_width=True)
             realne, ocakavane, bilancia = vypocitaj_bilanciu(u['vs'], df_p, df_k)
+
+            # ZMENA: Pridanie vizuálneho potvrdenia
+            if st.button("📋 Zobraziť potvrdenie o stave účtu"):
+                st.markdown(f"""
+                <div style="background:#fff; color:#000; padding:40px; border:2px solid #333; font-family:sans-serif;">
+                    <h2 style="color:#2b6cb0;">🏡 Potvrdenie o platbách: {u['meno']}</h2>
+                    <p><b>VS:</b> {u['vs']} | <b>Dátum:</b> {datetime.now().strftime('%d.%m.%Y')}</p>
+                    <hr>
+                    <p>Celkový predpis: <b>{ocakavane:.2f} €</b></p>
+                    <p>Celkom uhradené: <b>{realne:.2f} €</b></p>
+                    <h3 style="color:{'red' if bilancia < 0 else 'green'};">Zostatok: {bilancia:.2f} €</h3>
+                    <p style="font-size:0.8em; color:gray;">Poznámka: Informatívny prehľad k dnešnému dňu.</p>
+                </div>
+                """, unsafe_allow_html=True)
+                st.warning("Pre uloženie do PDF stlačte v prehliadači **Ctrl+P** (Tlač).")
 
             st.divider()
             if bilancia < 0:
@@ -415,7 +433,7 @@ try:
                     st.write(f"**{row.get('Meno', 'Neznámy')}** ({row.get('Dátum', '')})")
                     st.info(row.get('Odkaz', 'Bez textu'))
 
-    # --- T6: SPRÁVA (HLAVNÝ KOMUNIKÁTOR - DOPLNENÝ) ---
+    # --- T6: SPRÁVA (HLAVNÝ KOMUNIKÁTOR) ---
     if u["je_spravca"] or u["rola"] == "ZASTUPCA":
         with tabs[-1]:
             st.subheader("⚙️ Administrácia a komunikácia")
