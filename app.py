@@ -209,9 +209,10 @@ try:
 
     st.markdown(f"<h1 style='text-align: center;'>Vitaj, {u['meno']} 👋</h1>", unsafe_allow_html=True)
     
-    # Zarovnanie odhlasovacieho tlačidla na stred
+    # Zarovnanie odhlasovacieho tlačidla na stred s číslom verzie
     col_out1, col_out2, col_out3 = st.columns([1, 2, 1])
     with col_out2:
+        st.markdown("<p style='text-align: center; color: gray; font-size: 0.85em; margin-bottom: 5px;'>Verzia 2.18</p>", unsafe_allow_html=True)
         if st.button("Odhlásiť sa", use_container_width=True):
             st.session_state.update({"auth_pass": False, "user_data": None, "debt_confirmed": False})
             st.rerun()
@@ -383,7 +384,7 @@ try:
                 <h4 style="color:#2f855a; margin-top:0;">📝 Manuálne hlasovanie</h4>
                 <p style="color:#2d3748;">Pošlite e-mail na adresu: <b>{MAIL_SPRAVCA}</b><br>
                 <b>Predmet ZA:</b> HLAS:ANO | VS:{u['vs']} | {OTAZKA}<br>
-                <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTázka}</p>
+                <b>Predmet PROTI:</b> HLAS:NIE | VS:{u['vs']} | {OTAZKA}</p>
             </div>""", unsafe_allow_html=True)
         
         st.divider()
@@ -415,7 +416,7 @@ try:
                     st.write(f"**{row.get('Meno', 'Neznámy')}** ({row.get('Dátum', '')})")
                     st.info(row.get('Odkaz', 'Bez textu'))
 
-    # --- T6: SPRÁVA (HLAVNÝ KOMUNIKÁTOR - DOPLNENÝ) ---
+    # --- T6: SPRÁVA (HLAVNÝ KOMUNIKÁTOR) ---
     if u["je_spravca"] or u["rola"] == "ZASTUPCA":
         with tabs[-1]:
             st.subheader("⚙️ Administrácia a komunikácia")
