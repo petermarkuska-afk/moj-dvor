@@ -441,4 +441,5 @@ except Exception as e:
     if st.session_state["user_data"] is not None:
         st.error(f"Systémová informácia: {e}")
 
-st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port | verzia 2.19</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port | verzia 2.22 - fix predpis</p>", unsafe_allow_html=True)
+
