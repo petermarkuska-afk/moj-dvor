@@ -236,7 +236,7 @@ try:
                     st.markdown(f"""
                     <div style="background-color:#ffeeba; padding:15px; border-radius:10px; border-left:5px solid #ffc107; margin-bottom:20px;">
                         <h4 style="color:#856404; margin-top:0;">🗳️ Prebieha hlasovanie</h4>
-                        <p style="color:#2d3748; margin-bottom:5px;"><b>Otázka:</b> {OTAZKA}</p>
+                        <p style="color:#2d3748; margin-bottom:5px;"><b>OTAZKA:</b> {OTAZKA}</p>
                         <p style="color:#bd2130; font-weight:bold; font-size:1.1em; margin-bottom:10px;">⌛ Koniec o: {days_left} dní</p>
                         <p style="color:#2d3748; font-style: italic; border-top: 1px solid #dfc27d; padding-top: 8px;">👉 Nezabudnite zahlasovať v ankete v záložke <b>Anketa</b>.</p>
                     </div>
@@ -448,4 +448,5 @@ except Exception as e:
         st.error(f"Systémová informácia: {e}")
 
 st.markdown("<p style='text-align: center; font-size: 0.8em; color: gray; margin-top:50px;'>© 2026 Správa areálu Victory Port | verzia 2.18</p>", unsafe_allow_html=True)
+
 
