@@ -18,7 +18,7 @@ except Exception as e:
     st.stop()
 
 OTAZKA = "Postavíme heliport 2.0?" 
-KONIEC_ANKETY = "2026-03-10"
+KONIEC_ANKETY = "2026-03-18"
 
 st.set_page_config(page_title="Správa areálu Victory Port", layout="centered", page_icon="🏡")
 
